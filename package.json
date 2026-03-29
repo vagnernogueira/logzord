@@ -1,0 +1,16 @@
+{
+  "name": "logzord",
+  "version": "1.0.0",
+  "description": "Logzord — Software Architecture (Hub IA-First)",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "start:backend": "npm run start --workspace=backend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev": "npm run dev:backend & npm run dev:frontend"
+  }
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "service-a",
+    "name": "Service A",
+    "path": "./logs/service-a.log"
+  },
+  {
+    "id": "kubernetes-node1",
+    "name": "Kube Node 1",
+    "path": "./logs/kube-node1.log"
+  }
+]

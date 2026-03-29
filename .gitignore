@@ -1,0 +1,37 @@
+# Dependências
+node_modules/
+
+# Logs e Runtime
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Diretórios de Build (Frontend Vite & Backend Node/TS)
+dist/
+dist-ssr/
+build/
+out/
+
+# Variáveis de Ambiente (Dotenv)
+.env
+.env.*
+!.env.example
+
+# Relatórios de Testes (Vitest)
+coverage/
+
+# Caches
+.eslintcache
+*.tsbuildinfo
+.vite/
+
+# IDEs e Arquivos de Sistema Operacional
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
