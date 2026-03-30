@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { Play, Pause, Save, Download, FastForward, Rewind } from 'lucide-vue-next';
+import { Play, Pause, FastForward, Rewind } from 'lucide-vue-next';
 import Dexie from 'dexie';
 
 // --- Types ---
@@ -226,26 +226,35 @@ onUnmounted(() => {
 
 <template>
   <div class="flex h-screen w-full bg-slate-950 text-slate-300 font-sans dark custom-scrollbar">
-    
     <!-- Sidebar Targets -->
     <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
       <div class="p-4 border-b border-slate-800 flex items-center space-x-2">
         <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg glow">
           🤖
         </div>
-        <h1 class="text-xl font-bold text-white tracking-widest">LogZord</h1>
+        <h1 class="text-xl font-bold text-white tracking-widest">
+          LogZord
+        </h1>
       </div>
       
       <div class="p-4 flex-1 overflow-y-auto">
-        <h2 class="text-xs uppercase text-slate-500 font-semibold mb-3 tracking-wider">Targets</h2>
+        <h2 class="text-xs uppercase text-slate-500 font-semibold mb-3 tracking-wider">
+          Targets
+        </h2>
         <ul class="space-y-1">
-          <li v-for="target in targets" :key="target.id">
+          <li
+            v-for="target in targets"
+            :key="target.id"
+          >
             <button 
-              @click="selectTarget(target)"
               class="w-full text-left px-3 py-2 rounded-md transition-all duration-200 text-sm flex items-center shadow-sm"
               :class="selectedTarget?.id === target.id ? 'bg-blue-600 text-white shadow-blue-500/20 shadow-lg font-medium' : 'hover:bg-slate-800 text-slate-400'"
+              @click="selectTarget(target)"
             >
-              <div class="w-2 h-2 rounded-full mr-2" :class="selectedTarget?.id === target.id ? 'bg-white' : 'bg-slate-600'"></div>
+              <div
+                class="w-2 h-2 rounded-full mr-2"
+                :class="selectedTarget?.id === target.id ? 'bg-white' : 'bg-slate-600'"
+              />
               {{ target.name }}
             </button>
           </li>
@@ -254,53 +263,73 @@ onUnmounted(() => {
 
       <!-- Analysis Board Status -->
       <div class="p-4 bg-slate-800/50 m-4 rounded-lg border border-slate-700 backdrop-blur-sm">
-        <h3 class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">Quadro de Análise</h3>
-        <p class="text-2xl font-bold text-white mb-2">{{ recordedCount }} <span class="text-sm font-normal text-slate-500">linhas</span></p>
+        <h3 class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">
+          Quadro de Análise
+        </h3>
+        <p class="text-2xl font-bold text-white mb-2">
+          {{ recordedCount }} <span class="text-sm font-normal text-slate-500">linhas</span>
+        </p>
         <div class="flex space-x-2">
-            <button @click="exportRecord" class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1.5 rounded transition shadow-sm border border-slate-600">
-                Exportar
-            </button>
-            <button @click="clearRecord" class="flex-1 bg-red-900/40 hover:bg-red-900/60 text-red-400 text-xs py-1.5 rounded transition shadow-sm border border-red-900/50">
-                Limpar
-            </button>
+          <button
+            class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1.5 rounded transition shadow-sm border border-slate-600"
+            @click="exportRecord"
+          >
+            Exportar
+          </button>
+          <button
+            class="flex-1 bg-red-900/40 hover:bg-red-900/60 text-red-400 text-xs py-1.5 rounded transition shadow-sm border border-red-900/50"
+            @click="clearRecord"
+          >
+            Limpar
+          </button>
         </div>
       </div>
     </aside>
 
     <!-- Main Content -->
     <main class="flex-1 flex flex-col min-w-0 bg-slate-950 relative overflow-hidden">
-      
       <!-- Toolbar -->
       <header class="h-14 border-b border-slate-800 flex items-center px-4 justify-between bg-slate-900/80 backdrop-blur-md z-10 sticky top-0">
         <div class="flex items-center space-x-2">
           <!-- Play / Pause -->
           <button 
-            @click="togglePlay"
             class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 transform active:scale-95 shadow-md"
             :class="isPlaying ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30' : 'bg-green-500/20 text-green-500 hover:bg-green-500/30'"
             title="Play / Pause"
+            @click="togglePlay"
           >
-            <Pause v-if="isPlaying" :size="20" class="fill-current" />
-            <Play v-else :size="20" class="fill-current ml-1" />
+            <Pause
+              v-if="isPlaying"
+              :size="20"
+              class="fill-current"
+            />
+            <Play
+              v-else
+              :size="20"
+              class="fill-current ml-1"
+            />
           </button>
 
           <!-- Navigation (Mock) -->
           <div class="flex items-center bg-slate-800 rounded-full p-1 ml-4 border border-slate-700">
-             <button class="p-1.5 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-slate-700">
-                <Rewind :size="16" />
-             </button>
-             <button class="p-1.5 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-slate-700">
-                <FastForward :size="16" />
-             </button>
+            <button class="p-1.5 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-slate-700">
+              <Rewind :size="16" />
+            </button>
+            <button class="p-1.5 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-slate-700">
+              <FastForward :size="16" />
+            </button>
           </div>
 
           <!-- Record -->
           <button 
-            @click="toggleRecord"
             class="ml-4 flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 border shadow-sm"
             :class="isRecording ? 'bg-red-500/20 text-red-500 border-red-500/50 pulse-ring' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'"
+            @click="toggleRecord"
           >
-            <div class="w-2.5 h-2.5 rounded-full mr-2 transition-all duration-300" :class="isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-500'"></div>
+            <div
+              class="w-2.5 h-2.5 rounded-full mr-2 transition-all duration-300"
+              :class="isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-500'"
+            />
             {{ isRecording ? 'Gravando...' : 'Gravar' }}
           </button>
         </div>
@@ -312,9 +341,9 @@ onUnmounted(() => {
             type="text" 
             placeholder="Filtrar logs..." 
             class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded-full pl-4 pr-10 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-inner"
-          />
+          >
           <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 text-xs font-mono opacity-50">
-             /regex/
+            /regex/
           </div>
         </div>
       </header>
@@ -324,31 +353,39 @@ onUnmounted(() => {
         id="log-container"
         class="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed scroll-smooth"
       >
-        <div v-if="filteredLogs.length === 0" class="h-full flex items-center justify-center text-slate-500 flex-col">
-          <div class="w-16 h-16 border-4 border-slate-800 border-t-blue-500 rounded-full animate-spin mb-4 opacity-50" v-if="isPlaying"></div>
+        <div
+          v-if="filteredLogs.length === 0"
+          class="h-full flex items-center justify-center text-slate-500 flex-col"
+        >
+          <div
+            v-if="isPlaying"
+            class="w-16 h-16 border-4 border-slate-800 border-t-blue-500 rounded-full animate-spin mb-4 opacity-50"
+          />
           <p>{{ isPlaying ? 'Aguardando logs...' : 'Streaming pausado. Clique no Play para iniciar.' }}</p>
         </div>
-        <div 
-          v-for="log in filteredLogs" 
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div
+          v-for="log in filteredLogs"
           :key="log.id"
           class="hover:bg-slate-800/50 px-2 py-0.5 rounded transition-colors break-all whitespace-pre-wrap border-l-2 border-transparent hover:border-slate-600"
           v-html="syntaxHighlight(log.content)"
-        >
-        </div>
+        />
       </div>
       
       <!-- Status Bar -->
       <footer class="h-8 border-t border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500">
         <div class="flex items-center">
-            <div class="w-2 h-2 rounded-full mr-2" :class="ws?.readyState === 1 ? 'bg-green-500' : 'bg-red-500'"></div>
-            {{ ws?.readyState === 1 ? `Conectado (${WS_URL})` : 'Desconectado' }}
+          <div
+            class="w-2 h-2 rounded-full mr-2"
+            :class="ws?.readyState === 1 ? 'bg-green-500' : 'bg-red-500'"
+          />
+          {{ ws?.readyState === 1 ? `Conectado (${WS_URL})` : 'Desconectado' }}
         </div>
         <div class="font-mono">
-            OFFSET: <span class="text-slate-300 font-bold">{{ currentWsOffset }} bytes</span>
+          OFFSET: <span class="text-slate-300 font-bold">{{ currentWsOffset }} bytes</span>
         </div>
       </footer>
     </main>
-
   </div>
 </template>
 

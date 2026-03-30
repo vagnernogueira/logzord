@@ -1,3 +1,4 @@
+import globals from 'globals';
 import js from '@eslint/js';
 import pluginVue from 'eslint-plugin-vue';
 import tseslint from 'typescript-eslint';
@@ -11,6 +12,10 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         parser: tseslint.parser,
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
       },
     },
   },
