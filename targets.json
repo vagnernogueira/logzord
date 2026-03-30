@@ -1,0 +1,12 @@
+[
+  {
+    "id": "syslog",
+    "name": "System Logs",
+    "path": "/var/log/syslog"
+  },
+  {
+    "id": "sample",
+    "name": "Log de Teste (App)",
+    "path": "sample.log"
+  }
+]

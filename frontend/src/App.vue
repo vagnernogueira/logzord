@@ -32,6 +32,9 @@ db.version(1).stores({
 });
 const recordedCount = ref(0);
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+
 let ws: WebSocket | null = null;
 
 // --- Computed ---
@@ -52,7 +55,7 @@ function syntaxHighlight(content: string) {
 // --- Methods ---
 async function fetchTargets() {
   try {
-    const res = await fetch('http://localhost:3001/api/targets');
+    const res = await fetch(`${API_URL}/targets`);
     targets.value = await res.json();
     if (targets.value.length > 0) {
       selectTarget(targets.value[0]);
@@ -76,7 +79,7 @@ function connectWebSocket() {
   if (ws) {
     ws.close();
   }
-  ws = new WebSocket('ws://localhost:3001');
+  ws = new WebSocket(WS_URL);
   
   ws.onopen = () => {
     console.log('Connected to WS');
@@ -338,7 +341,7 @@ onUnmounted(() => {
       <footer class="h-8 border-t border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500">
         <div class="flex items-center">
             <div class="w-2 h-2 rounded-full mr-2" :class="ws?.readyState === 1 ? 'bg-green-500' : 'bg-red-500'"></div>
-            {{ ws?.readyState === 1 ? 'Conectado (ws://localhost:3001)' : 'Desconectado' }}
+            {{ ws?.readyState === 1 ? `Conectado (${WS_URL})` : 'Desconectado' }}
         </div>
         <div class="font-mono">
             OFFSET: <span class="text-slate-300 font-bold">{{ currentWsOffset }} bytes</span>

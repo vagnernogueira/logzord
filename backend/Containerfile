@@ -1,0 +1,14 @@
+FROM docker.io/node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+# Se houver um passo de build TypeScript no backend (ex: tsc), adicione a instrução de build aqui
+# RUN npm run build
+
+EXPOSE 3001
+CMD ["npm", "start"]
