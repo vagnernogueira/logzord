@@ -107,7 +107,10 @@ frontend/src/
    +--> StatusBar ---- wsState / wsUrl / currentWsOffset
        |
        v
-    [ Express Server ] ---- targets.json / FS Streamer
+    [ Express Server ] ---- backend/targets.json / FS Streamer
+       ^
+       |
+    [ wkr/generate-logs.sh ] ----> [ wkr/sample.log ]
 ```
 
 ## 5. Estrutura IA-First de Documentação
@@ -140,11 +143,20 @@ _docs/
 
 - Retomada de stream requer armazenamento preciso do byte offset pelo frontend; imprecisão resulta em lacuna ou sobreposição de logs.
 
+### 7.4 Logs de teste locais
+
+- `backend/targets.json` centraliza a lista de alvos consumida pelo backend para `/api/targets` e para o streaming WebSocket.
+- `wkr/sample.log` é o arquivo de amostra usado no alvo `sample`.
+- `wkr/generate-logs.sh` gera novas linhas em modo append e aceita `--reset` para truncar o arquivo antes de iniciar a geração.
+- `Makefile` expõe alvos auxiliares para iniciar, parar e resetar o gerador sem precisar executar o script manualmente.
+
 ## 8. Arquivos Importantes
 
 | Arquivo | Descrição |
 | :--- | :--- |
-| `targets.json` | Lista de alvos de log disponíveis para streaming |
+| `backend/targets.json` | Lista de alvos de log disponíveis para streaming |
+| `wkr/generate-logs.sh` | Gerador local de logs de teste com suporte a `--reset` |
+| `wkr/sample.log` | Arquivo de log de exemplo consumido pelo alvo `sample` |
 | `compose.yaml` | Configuração Docker/Podman Compose |
 | `Makefile` | Comandos de build, execução e parada da aplicação |
 
@@ -173,3 +185,8 @@ _docs/
   - **Data:** 2026-04-01
   - **Autor:** IA
   - **Mudanças:** Documentação da refatoração do frontend — inclusão da estrutura de diretórios, dos componentes `AppSidebar`, `LogToolbar`, `LogViewer` e `StatusBar`, dos composables `useLogStream` e `useRecording`, dos tipos `Target` e `LogEntry`, do fluxo `App.vue` -> composables -> componentes e da integração com `shadcn-vue` e `radix-vue`.
+
+- **Versão 1.3**
+  - **Data:** 2026-04-01
+  - **Autor:** IA
+  - **Mudanças:** Documentação do fluxo de logs de teste locais — migração da lista de alvos para `backend/targets.json`, inclusão do gerador `wkr/generate-logs.sh`, do arquivo `wkr/sample.log`, do apoio do `Makefile` e atualização do diagrama para refletir a geração e consumo local dos logs.
