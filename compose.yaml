@@ -10,8 +10,8 @@ services:
       - "3001:3001"
     volumes:
       # Montagem do arquivo de targets e do diretório de logs para leitura (ro = read-only)
-      - ./targets.json:/app/targets.json:ro
-      - ./sample.log:/app/sample.log:ro
+      - ./backend/targets.json:/app/targets.json:ro
+      - ./wkr:/app/wkr:ro
       - /var/log:/var/log:ro
     restart: unless-stopped
     environment:

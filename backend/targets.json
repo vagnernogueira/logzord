@@ -1,12 +1,17 @@
 [
   {
-    "id": "service-a",
-    "name": "Service A",
-    "path": "./logs/service-a.log"
+    "id": "service-x",
+    "name": "Serviço de teste X",
+    "path": "wkr/sample.log"
   },
   {
-    "id": "kubernetes-node1",
-    "name": "Kube Node 1",
-    "path": "./logs/kube-node1.log"
+    "id": "service-y",
+    "name": "Serviço de teste Y",
+    "path": "wkr/sample.log"
+  },
+  {
+    "id": "service-z",
+    "name": "Serviço de teste Z",
+    "path": "wkr/sample.log"
   }
 ]
