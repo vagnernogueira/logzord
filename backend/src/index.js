@@ -16,6 +16,10 @@ app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+function byteLengthOf(chunk) {
+  return Buffer.byteLength(chunk, 'utf8')
+}
+
 // Load targets
 const targetsPath = path.resolve(__dirname, '../targets.json');
 
@@ -35,6 +39,81 @@ app.get('/api/targets', (req, res) => {
 wss.on('connection', (ws) => {
   console.log('Client connected');
   let currentStream = null;
+  let currentTargetPath = null;
+  let currentOffset = 0;
+  let isStreaming = false;
+  let watchTimer = null;
+
+  function cleanupCurrentStream() {
+    if (currentStream) {
+      currentStream.destroy();
+      currentStream = null;
+    }
+  }
+
+  function stopWatching() {
+    if (watchTimer) {
+      clearTimeout(watchTimer);
+      watchTimer = null;
+    }
+  }
+
+  function scheduleRead() {
+    if (!isStreaming || !currentTargetPath || currentStream) {
+      return;
+    }
+
+    fs.stat(currentTargetPath, (statError, stats) => {
+      if (statError) {
+        ws.send(JSON.stringify({ type: 'ERROR', message: statError.message }));
+        return;
+      }
+
+      if (stats.size < currentOffset) {
+        currentOffset = stats.size;
+      }
+
+      if (stats.size === currentOffset) {
+        watchTimer = setTimeout(scheduleRead, 1000);
+        return;
+      }
+
+      currentStream = fs.createReadStream(currentTargetPath, {
+        start: currentOffset,
+        end: stats.size - 1,
+        encoding: 'utf8',
+      });
+
+      currentStream.on('data', (chunk) => {
+        currentOffset += byteLengthOf(chunk);
+        ws.send(JSON.stringify({
+          type: 'LOG_CHUNK',
+          content: chunk,
+          offset: currentOffset,
+        }));
+      });
+
+      currentStream.on('end', () => {
+        currentStream = null;
+        if (isStreaming) {
+          watchTimer = setTimeout(scheduleRead, 0);
+        }
+      });
+
+      currentStream.on('error', (streamError) => {
+        currentStream = null;
+        ws.send(JSON.stringify({ type: 'ERROR', message: streamError.message }));
+      });
+    });
+  }
+
+  function stopStreaming() {
+    isStreaming = false;
+    stopWatching();
+    cleanupCurrentStream();
+    currentTargetPath = null;
+    currentOffset = 0;
+  }
 
   ws.on('message', (message) => {
     try {
@@ -60,39 +139,15 @@ wss.on('connection', (ws) => {
            return;
         }
 
-        if (currentStream) {
-          currentStream.destroy();
-        }
+        cleanupCurrentStream();
+        stopWatching();
 
-        // Stream from byte offset
-        let currentOffset = startOffset;
-        currentStream = fs.createReadStream(logPath, {
-          start: startOffset,
-          encoding: 'utf8' // reading as string chunks
-        });
-
-        currentStream.on('data', (chunk) => {
-          // Send chunk and the current byte offset after this chunk
-          currentOffset += Buffer.byteLength(chunk, 'utf8');
-          ws.send(JSON.stringify({
-            type: 'LOG_CHUNK',
-            content: chunk,
-            offset: currentOffset
-          }));
-        });
-
-        currentStream.on('end', () => {
-          ws.send(JSON.stringify({ type: 'STREAM_END' }));
-        });
-
-        currentStream.on('error', (err) => {
-          ws.send(JSON.stringify({ type: 'ERROR', message: err.message }));
-        });
+        currentTargetPath = logPath;
+        currentOffset = startOffset;
+        isStreaming = true;
+        scheduleRead();
       } else if (data.type === 'PAUSE_STREAM') {
-        if (currentStream) {
-          currentStream.destroy();
-          currentStream = null;
-        }
+        stopStreaming();
       }
     } catch (e) {
       console.error('WebSocket Error:', e);
@@ -101,9 +156,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('Client disconnected');
-    if (currentStream) {
-      currentStream.destroy();
-    }
+    stopStreaming();
   });
 });
 

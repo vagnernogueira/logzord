@@ -11,9 +11,12 @@ export function useLogStream() {
   const logs = ref<LogEntry[]>([])
   const filterText = ref('')
   const currentWsOffset = ref(0)
+  const wsState = ref<WebSocket['readyState']>(WebSocket.CLOSED)
 
   let ws: WebSocket | null = null
   let onLogEntry: ((line: string, offset: number) => void) | null = null
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let shouldReconnect = true
 
   const filteredLogs = computed(() => {
     if (!filterText.value) return logs.value
@@ -50,14 +53,32 @@ export function useLogStream() {
     }
   }
 
-  function connectWebSocket() {
-    if (ws) {
-      ws.close()
+  function clearReconnectTimer() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
     }
+  }
+
+  function scheduleReconnect() {
+    if (!shouldReconnect || reconnectTimer) {
+      return
+    }
+
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      connectWebSocket()
+    }, 5000)
+  }
+
+  function connectWebSocket() {
+    clearReconnectTimer()
     ws = new WebSocket(WS_URL)
+    wsState.value = ws.readyState
 
     ws.onopen = () => {
       console.log('Connected to WS')
+      wsState.value = ws?.readyState ?? WebSocket.OPEN
       if (isPlaying.value) {
         startStream()
       }
@@ -98,7 +119,12 @@ export function useLogStream() {
 
     ws.onclose = () => {
       console.log('Disconnected from WS')
-      setTimeout(connectWebSocket, 5000)
+      wsState.value = ws?.readyState ?? WebSocket.CLOSED
+      scheduleReconnect()
+    }
+
+    ws.onerror = () => {
+      wsState.value = ws?.readyState ?? WebSocket.CLOSED
     }
   }
 
@@ -142,15 +168,18 @@ export function useLogStream() {
   }
 
   function getWsState(): number | undefined {
-    return ws?.readyState
+    return wsState.value
   }
 
   onMounted(() => {
+    shouldReconnect = true
     fetchTargets()
     connectWebSocket()
   })
 
   onUnmounted(() => {
+    shouldReconnect = false
+    clearReconnectTimer()
     if (ws) ws.close()
   })
 
@@ -163,6 +192,7 @@ export function useLogStream() {
     filteredLogs,
     currentWsOffset,
     WS_URL,
+    wsState,
     selectTarget,
     togglePlay,
     syntaxHighlight,
