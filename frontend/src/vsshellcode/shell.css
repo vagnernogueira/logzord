@@ -1,0 +1,238 @@
+/*
+ * Layout do shell seguindo os "containers" descritos em
+ * https://code.visualstudio.com/api/ux-guidelines/overview :
+ * Activity Bar, Primary Sidebar, Editor, Panel, Status Bar.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  overflow: hidden;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 48px auto 1fr;
+  grid-template-rows: 1fr 22px;
+  grid-template-areas:
+    "activitybar sidebar main"
+    "statusbar   statusbar statusbar";
+  height: 100vh;
+}
+
+/* Activity Bar */
+
+.activity-bar {
+  grid-area: activitybar;
+  background: var(--vscode-activityBar-background);
+  border-right: 1px solid var(--vscode-activityBar-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.activity-bar__group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.activity-bar__item {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--vscode-activityBar-inactiveForeground);
+  cursor: pointer;
+  font-size: 22px;
+}
+
+.activity-bar__item:hover {
+  color: var(--vscode-activityBar-foreground);
+}
+
+.activity-bar__item[aria-selected="true"] {
+  color: var(--vscode-activityBar-foreground);
+}
+
+.activity-bar__item[aria-selected="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--vscode-activityBar-foreground);
+}
+
+/* Primary Sidebar */
+
+.sidebar {
+  grid-area: sidebar;
+  width: 260px;
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-sideBar-foreground);
+  border-right: 1px solid var(--vscode-sideBar-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar[hidden] {
+  display: none;
+}
+
+.sidebar__title {
+  padding: 10px 20px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vscode-sideBarTitle-foreground);
+  letter-spacing: 0.04em;
+}
+
+.sidebar__section {
+  overflow-y: auto;
+}
+
+/* Editor / Main area */
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--vscode-editor-background);
+}
+
+.tabs {
+  display: flex;
+  background: var(--vscode-tab-inactiveBackground);
+  border-bottom: 1px solid var(--vscode-tab-border);
+  overflow-x: auto;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 35px;
+  font-size: 13px;
+  color: var(--vscode-tab-inactiveForeground);
+  background: var(--vscode-tab-inactiveBackground);
+  border-right: 1px solid var(--vscode-tab-border);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab[aria-selected="true"] {
+  color: var(--vscode-tab-activeForeground);
+  background: var(--vscode-tab-activeBackground);
+  box-shadow: inset 0 -1px 0 var(--vscode-tab-activeBorderTop);
+}
+
+.tab .codicon {
+  font-size: 16px;
+}
+
+.tab__close {
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+  padding: 2px;
+}
+
+.tab:hover .tab__close,
+.tab[aria-selected="true"] .tab__close {
+  opacity: 0.8;
+}
+
+.tab__close:hover {
+  opacity: 1;
+  background: var(--vscode-list-hoverBackground);
+}
+
+.editor-area {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  color: var(--vscode-editor-foreground);
+}
+
+.panel {
+  height: 180px;
+  border-top: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-panel-background);
+  overflow: auto;
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+/* Status Bar */
+
+.status-bar {
+  grid-area: statusbar;
+  background: var(--vscode-statusBar-background);
+  color: var(--vscode-statusBar-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.status-bar__group {
+  display: flex;
+  height: 100%;
+}
+
+.status-bar__item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.status-bar__item:hover {
+  background: var(--vscode-statusBarItem-hoverBackground);
+}
+
+.status-bar__item .codicon {
+  font-size: 14px;
+}
+
+/* Scrollbars no estilo VS Code */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}

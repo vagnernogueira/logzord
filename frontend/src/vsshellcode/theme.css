@@ -1,0 +1,120 @@
+/*
+ * Tokens de cor no padrao das variaveis --vscode-* usadas em webviews de
+ * extensao do VS Code (ver https://code.visualstudio.com/api/references/theme-color).
+ * Valores default = tema Dark+. Trocar [data-theme="light"] para o tema Light+.
+ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --vscode-foreground: #cccccc;
+  --vscode-descriptionForeground: #9d9d9d;
+  --vscode-errorForeground: #f48771;
+
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4;
+
+  --vscode-sideBar-background: #252526;
+  --vscode-sideBar-foreground: #cccccc;
+  --vscode-sideBar-border: #1e1e1e;
+  --vscode-sideBarTitle-foreground: #bbbbbb;
+  --vscode-sideBarSectionHeader-background: #00000000;
+
+  --vscode-activityBar-background: #333333;
+  --vscode-activityBar-foreground: #ffffff;
+  --vscode-activityBar-inactiveForeground: #ffffff66;
+  --vscode-activityBar-border: #00000000;
+  --vscode-activityBarBadge-background: #007acc;
+  --vscode-activityBarBadge-foreground: #ffffff;
+
+  --vscode-titleBar-activeBackground: #3c3c3c;
+  --vscode-titleBar-activeForeground: #cccccc;
+
+  --vscode-statusBar-background: #007acc;
+  --vscode-statusBar-foreground: #ffffff;
+  --vscode-statusBar-border: #00000000;
+  --vscode-statusBarItem-hoverBackground: #ffffff1f;
+
+  --vscode-tab-activeBackground: #1e1e1e;
+  --vscode-tab-inactiveBackground: #2d2d2d;
+  --vscode-tab-activeForeground: #ffffff;
+  --vscode-tab-inactiveForeground: #ffffff80;
+  --vscode-tab-border: #252526;
+  --vscode-tab-activeBorderTop: #007acc;
+
+  --vscode-panel-background: #1e1e1e;
+  --vscode-panel-border: #80808059;
+
+  --vscode-focusBorder: #007fd4;
+  --vscode-widget-border: #303031;
+  --vscode-widget-shadow: #00000066;
+
+  --vscode-list-hoverBackground: #2a2d2e;
+  --vscode-list-activeSelectionBackground: #04395e;
+  --vscode-list-activeSelectionForeground: #ffffff;
+  --vscode-list-inactiveSelectionBackground: #37373d;
+
+  --vscode-scrollbarSlider-background: #79797966;
+  --vscode-scrollbarSlider-hoverBackground: #646464b3;
+
+  --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --vscode-editor-font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --vscode-foreground: #3b3b3b;
+  --vscode-descriptionForeground: #717171;
+  --vscode-errorForeground: #a1260d;
+
+  --vscode-editor-background: #ffffff;
+  --vscode-editor-foreground: #3b3b3b;
+
+  --vscode-sideBar-background: #f3f3f3;
+  --vscode-sideBar-foreground: #3b3b3b;
+  --vscode-sideBar-border: #e7e7e7;
+  --vscode-sideBarTitle-foreground: #6f6f6f;
+  --vscode-sideBarSectionHeader-background: #00000000;
+
+  --vscode-activityBar-background: #2c2c2c;
+  --vscode-activityBar-foreground: #ffffff;
+  --vscode-activityBar-inactiveForeground: #ffffff66;
+  --vscode-activityBar-border: #00000000;
+  --vscode-activityBarBadge-background: #007acc;
+  --vscode-activityBarBadge-foreground: #ffffff;
+
+  --vscode-titleBar-activeBackground: #dddddd;
+  --vscode-titleBar-activeForeground: #3b3b3b;
+
+  --vscode-statusBar-background: #007acc;
+  --vscode-statusBar-foreground: #ffffff;
+  --vscode-statusBar-border: #00000000;
+  --vscode-statusBarItem-hoverBackground: #ffffff1f;
+
+  --vscode-tab-activeBackground: #ffffff;
+  --vscode-tab-inactiveBackground: #ececec;
+  --vscode-tab-activeForeground: #3b3b3b;
+  --vscode-tab-inactiveForeground: #3b3b3b80;
+  --vscode-tab-border: #f3f3f3;
+  --vscode-tab-activeBorderTop: #007acc;
+
+  --vscode-panel-background: #ffffff;
+  --vscode-panel-border: #80808059;
+
+  --vscode-focusBorder: #005fb8;
+  --vscode-widget-border: #d4d4d4;
+  --vscode-widget-shadow: #00000029;
+
+  --vscode-list-hoverBackground: #e8e8e8;
+  --vscode-list-activeSelectionBackground: #cee7fc;
+  --vscode-list-activeSelectionForeground: #000000;
+  --vscode-list-inactiveSelectionBackground: #e4e6f1;
+
+  --vscode-scrollbarSlider-background: #64646466;
+  --vscode-scrollbarSlider-hoverBackground: #64646499;
+
+  --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --vscode-editor-font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
