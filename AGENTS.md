@@ -1,6 +1,6 @@
 # Logzord — Contexto Operacional
 
-> Arquivo autônomo para agentes que carregam `AGENTS.md`. As instruções operacionais são mantidas alinhadas ao `CLAUDE.md`; skills de documentação e geração de demandas são fornecidas pelo mecanismo nativo de skills (xskills) do agente.
+> Fonte única de instruções operacionais do projeto. `CLAUDE.md` é um symlink para este arquivo. Skills de documentação e geração de demandas são fornecidas pelo mecanismo nativo de skills (xskills) do agente.
 
 ## Produto
 
@@ -39,8 +39,6 @@ make stop              # para container local
 make build             # gera nova imagem (corrigir falhas antes de prosseguir)
 make run               # sobe a aplicação com as mudanças
 ```
-
-> Não testar via navegador web. Para demandas multi-fase, trabalhar em etapas.
 
 ## Regras obrigatórias
 
@@ -141,6 +139,5 @@ Após toda implementação entregar:
 
 ## Referências do projeto
 
-- `CLAUDE.md` — contexto operacional consolidado
 - `_docs/ARCHITECTURE.md` — arquitetura do sistema
 - `README.md` — onboarding e comandos principais
