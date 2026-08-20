@@ -107,8 +107,15 @@ frontend/src/
 - O pacote é consumido pelo registry do GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para `https://npm.pkg.github.com` e usa `${GITHUB_TOKEN}` como token de instalação; nenhum token é versionado. O `make build` grava o token em um arquivo temporário com permissões restritas e o monta como segredo apenas durante o build do frontend; o token não é interpolado no Compose nem persistido em uma layer da imagem.
 - `frontend/src/main.ts` importa `@vagnernogueira/vsshellcode/css/theme.css` e `shell.css` antes de `frontend/src/style.css`.
 - O bridging de cor adotado na Fase 6 usa VS Code → Tailwind: as variáveis `--vscode-*` fornecidas pelo shell são a fonte única, e `frontend/src/style.css` mapeia os tokens semânticos do Tailwind/shadcn para elas. `tailwind.config.js` preserva utilitários de opacidade com `color-mix`.
-- Hoje não existe `.github/workflows/` no repositório. Um futuro workflow que instale a dependência scoped deverá ter `GITHUB_TOKEN` ou PAT com scope `read:packages`.
 - `pilot/vsshellcode-integration` é um branch local-only do piloto, superseded pela adoção do pacote; o destino é descartá-lo após o merge, conforme decisão do humano. Esta sessão não remove o branch.
+
+### 3.6 CI/CD (`.github/workflows/`)
+
+- `pr-checks.yml` e `docker-publish.yml` seguem o padrão de dois workflows do template `~/dontpad/.github/workflows/`, com duas divergências deliberadas (revisadas na issue #6):
+  - **`pr-checks.yml` existe e roda lint+test em todo PR para `main`.** O dontpad não tem esse workflow — lá o job `test` só roda dentro do `docker-publish.yml`, no momento do release (tag `v*` ou `workflow_dispatch`). Decisão: manter como guardrail mais rigoroso — pega lint/test quebrado antes do merge, não só no release.
+  - **`permissions` de `docker-publish.yml` são mais restritas que o template.** O dontpad declara `packages: write` no topo do workflow (herdado por todos os jobs, incluindo `test`). O logzord declara `packages: read` no topo e cada job de build (`build-backend`, `build-frontend`) sobrescreve para `packages: write`; o job `test` permanece com `read`. Decisão: manter o escopo restrito, por princípio de menor privilégio (o job `test` não precisa de `write` em packages).
+- Ambos os workflows usam `actions/checkout@v7` e `actions/setup-node@v7`, alinhados à versão do template (resolve o aviso de depreciação do runner Node 20 emitido em `actions/checkout@v4`/`actions/setup-node@v4`).
+- A instalação de `@vagnernogueira/vsshellcode` (dependência scoped privada via GitHub Packages) é um mecanismo específico do logzord, sem equivalente no template dontpad — usa `GH_PACKAGES_TOKEN` (PAT dedicado com scope `read:packages`, ver decisão da issue #5) tanto em `pr-checks.yml` quanto em `docker-publish.yml`.
 
 ## 4. Diagrama de Arquitetura
 
