@@ -9,11 +9,9 @@ import {
   ShellTabs,
   ShellPanel,
   ShellStatusBar,
-  type ShellActivityBarItem,
   type ShellStatusBarItem,
 } from '@vagnernogueira/vsshellcode/vue'
-import TargetsSection from '@/components/TargetsSection.vue'
-import AnalysisSection from '@/components/AnalysisSection.vue'
+import { views } from '@/views.config'
 import LogToolbar from '@/components/LogToolbar.vue'
 import LogViewer from '@/components/LogViewer.vue'
 
@@ -46,12 +44,19 @@ setOnLogEntry((line: string, offset: number) => {
 
 const wsState = computed(() => getWsState())
 
-const activitySections: ShellActivityBarItem[] = [
-  { id: 'targets', icon: 'files', title: 'Logs' },
-  { id: 'analysis', icon: 'graph', title: 'Análise' },
-]
-
-const activeSection = ref<string | null>('targets')
+const activeSection = ref<string | null>(views[0]?.id ?? null)
+const activeView = computed(() => views.find(({ id }) => id === activeSection.value) ?? views[0]!)
+const activeViewProps = computed(() =>
+  activeView.value.id === 'targets'
+    ? {
+        targets: targets.value,
+        selectedTarget: selectedTarget.value,
+      }
+    : {
+        recordedCount: recordedCount.value,
+        isRecording: isRecording.value,
+      },
+)
 const openTargetIds = ref<string[]>([])
 
 watch(selectedTarget, (target) => {
@@ -118,20 +123,14 @@ function handleStatusBarItemClick(id: string) {
   <div class="shell dark custom-scrollbar">
     <ShellActivityBar
       v-model:activeId="activeSection"
-      :items="activitySections"
+      :items="views"
     />
 
     <ShellSidebar :open="activeSection !== null">
-      <TargetsSection
-        v-if="activeSection === 'targets'"
-        :targets="targets"
-        :selected-target="selectedTarget"
+      <component
+        :is="activeView.component"
+        v-bind="activeViewProps"
         @select-target="selectTarget"
-      />
-      <AnalysisSection
-        v-else-if="activeSection === 'analysis'"
-        :recorded-count="recordedCount"
-        :is-recording="isRecording"
         @export-record="exportRecord"
         @clear-record="clearRecord"
       />
