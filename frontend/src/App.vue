@@ -8,10 +8,8 @@ import {
   ShellSidebar,
   ShellTabs,
   ShellPanel,
-  type ShellActivityBarItem,
 } from '@vagnernogueira/vsshellcode/vue'
-import TargetsSection from '@/components/TargetsSection.vue'
-import AnalysisSection from '@/components/AnalysisSection.vue'
+import { views } from '@/views.config'
 import LogToolbar from '@/components/LogToolbar.vue'
 import LogViewer from '@/components/LogViewer.vue'
 import StatusBar from '@/components/StatusBar.vue'
@@ -46,12 +44,10 @@ setOnLogEntry((line: string, offset: number) => {
 
 const wsState = computed(() => getWsState())
 
-const activitySections: ShellActivityBarItem[] = [
-  { id: 'targets', icon: 'files', title: 'Logs' },
-  { id: 'analysis', icon: 'graph', title: 'Análise' },
-]
-
-const activeSection = ref<string | null>('targets')
+const activeSection = ref<string | null>(views[0]?.id ?? null)
+const activeView = computed(
+  () => views.find(({ id }) => id === activeSection.value) ?? views[0],
+)
 const openTargetIds = ref<string[]>([])
 
 watch(selectedTarget, (target) => {
@@ -92,20 +88,17 @@ const panelOpen = ref(false)
   <div class="shell dark custom-scrollbar">
     <ShellActivityBar
       v-model:activeId="activeSection"
-      :items="activitySections"
+      :items="views"
     />
 
     <ShellSidebar :open="activeSection !== null">
-      <TargetsSection
-        v-if="activeSection === 'targets'"
+      <component
+        :is="activeView.component"
         :targets="targets"
         :selected-target="selectedTarget"
-        @select-target="selectTarget"
-      />
-      <AnalysisSection
-        v-else-if="activeSection === 'analysis'"
         :recorded-count="recordedCount"
         :is-recording="isRecording"
+        @select-target="selectTarget"
         @export-record="exportRecord"
         @clear-record="clearRecord"
       />
