@@ -9,9 +9,11 @@ import {
   ShellTabs,
   ShellPanel,
   ShellStatusBar,
+  ShellCommandPalette,
   useShellKeybindings,
   type ShellStatusBarItem,
 } from '@vagnernogueira/vsshellcode/vue'
+import { commands } from '@/commands.config'
 import { views } from '@/views.config'
 import LogToolbar from '@/components/LogToolbar.vue'
 import LogViewer from '@/components/LogViewer.vue'
@@ -115,7 +117,25 @@ function togglePanel() {
   panelOpen.value = !panelOpen.value
 }
 
-function openCommandPalette() {}
+const paletteOpen = ref(false)
+
+function openCommandPalette() {
+  paletteOpen.value = true
+}
+
+const commandHandlers: Record<string, () => void> = {
+  'toggle-sidebar': toggleSidebar,
+  'toggle-panel': togglePanel,
+  'toggle-play': togglePlay,
+  'toggle-record': toggleRecord,
+  'export-record': () => void exportRecord(),
+  'clear-record': () => void clearRecord(),
+}
+
+function executeCommand(id: string) {
+  commandHandlers[id]?.()
+  paletteOpen.value = false
+}
 
 useShellKeybindings({
   onToggleSidebar: toggleSidebar,
@@ -197,6 +217,13 @@ function handleStatusBarItemClick(id: string) {
       :left-items="statusBarLeftItems"
       :right-items="statusBarRightItems"
       @item-click="handleStatusBarItemClick"
+    />
+
+    <ShellCommandPalette
+      :open="paletteOpen"
+      :commands="commands"
+      @close="paletteOpen = false"
+      @execute="executeCommand"
     />
   </div>
 </template>
