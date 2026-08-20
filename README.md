@@ -55,7 +55,7 @@ Configure os alvos de log em `backend/targets.json`.
 ### Como Compilar
 
 ```bash
-npm run build --workspace=frontend
+npm --workspace=frontend run build
 ```
 
 ### Como Executar
@@ -72,8 +72,8 @@ make stop
 ### Como Executar os Testes
 
 ```bash
-npm run lint --workspace=frontend
-npm run test --workspace=frontend
+npm --workspace=frontend run lint
+npm --workspace=frontend run test
 ```
 
 ## Ondas de Desenvolvimento

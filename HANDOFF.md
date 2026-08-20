@@ -26,7 +26,7 @@ Fonte consultada: `node_modules/@vagnernogueira/vsshellcode/dist/vue/*`.
 ## Entrega
 
 - Criado `frontend/src/App.spec.ts` com mocks dos componentes oficiais do `@vagnernogueira/vsshellcode/vue` e cobertura da composição do `App.vue`: troca de view, colapso da sidebar, tabs e toggle do panel.
-- Atualizados `_docs/ARCHITECTURE.md` e `_docs/ia-context/project-overlay/context.md` com a dependência `@vagnernogueira/vsshellcode` `^1.0.1`, GitHub Packages/`frontend/.npmrc`, bridging VS Code → Tailwind, requisito futuro de `read:packages` em CI e destino do branch piloto.
+- Atualizados `_docs/ARCHITECTURE.md` e `_docs/ia-context/project-overlay/context.md` com a dependência `@vagnernogueira/vsshellcode` `^1.0.1`, GitHub Packages/`.npmrc` (raiz), bridging VS Code → Tailwind, requisito futuro de `read:packages` em CI e destino do branch piloto.
 - `pilot/vsshellcode-integration` permanece local-only, superseded pela adoção do pacote; deve ser descartado após o merge por decisão do humano. O branch não foi deletado.
 
 ## Validação
