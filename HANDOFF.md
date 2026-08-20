@@ -106,3 +106,21 @@ Fonte consultada: `node_modules/@vagnernogueira/vsshellcode/dist/vue/*`.
 - `71add56 docs: document dedicated read:packages PAT for GitHub Packages auth`
 - `f7e1485 chore(release): bump version to 1.2.1`
 - Este handoff está no commit `docs: record GH_PACKAGES_TOKEN rotation handoff`.
+
+# HANDOFF — logzord#7 / Testes locais com imagens do GHCR
+
+## Entrega
+
+- `compose.yaml`: `backend` e `frontend` passam a referenciar `ghcr.io/vagnernogueira/logzord-{backend,frontend}:latest` por padrão, com bloco `build:` comentado ao lado para quem quiser voltar a buildar local — padrão espelhado do `dontpad` (`~/dontpad/docker-compose.yml`).
+- `Makefile`: alvo `run` passa a rodar `podman compose pull` antes do `up -d`, com aviso de que sobe imagens do GHCR e não build local (mesmo padrão do `dontpad/Makefile`).
+- Confirmado que o pacote é público (`gh api /user/packages/container/logzord-backend` → `visibility: public`), então `run`/`pull` não exige `podman login`.
+
+## Validação
+
+- `make stop` + `podman rmi` removeram containers e imagens locais órfãs do fluxo de build antigo (`logzord_backend`, `logzord_frontend`, `logzord-frontend`).
+- `make run`: **green** — `podman compose pull` trouxe `ghcr.io/vagnernogueira/logzord-backend:latest` e `logzord-frontend:latest`; `podman compose up -d` subiu `logzord-backend` (porta 3001) e `logzord-frontend` (porta 8081) a partir dessas imagens.
+- Nenhuma validação em navegador (fora do escopo do fluxo operacional do projeto).
+
+## Commits
+
+- Este handoff e as mudanças em `compose.yaml`/`Makefile` estão no commit que fecha a issue #7.
