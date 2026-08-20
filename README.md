@@ -76,6 +76,21 @@ npm --workspace=frontend run lint
 npm --workspace=frontend run test
 ```
 
+## CI/CD
+
+O workflow de PR executa lint e testes de frontend e backend. O workflow de publicação é executado em tags `v*` ou manualmente e publica as imagens privadas no GHCR somente após o gate de testes.
+
+Configure `GH_PACKAGES_TOKEN`, `FRONTEND_HTTP_URL` e `FRONTEND_WS_URL` em **Settings > Secrets and variables > Actions**. `GITHUB_TOKEN` é fornecido automaticamente pelo GitHub Actions e não pode ser criado como secret do repositório:
+
+| Secret | Valor |
+| :--- | :--- |
+| `GH_PACKAGES_TOKEN` | PAT com permissão `read:packages` para instalar dependências privadas |
+| `GITHUB_TOKEN` | Token automático do GitHub Actions, usado para autenticar e publicar no GHCR; não criar manualmente |
+| `FRONTEND_HTTP_URL` | `https://logzordsrv.vagnernogueira.com/api` |
+| `FRONTEND_WS_URL` | `wss://logzordsrv.vagnernogueira.com` |
+
+As URLs do frontend são incorporadas na imagem durante o build via build-args; no build da imagem, o token é fornecido como build secret e não como build-arg.
+
 ## Ondas de Desenvolvimento
 
 | Onda | Nome | Status |
