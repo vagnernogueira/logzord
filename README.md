@@ -33,13 +33,13 @@ O Logzord é uma SPA Vue 3 com backend Node.js que permite monitorar arquivos de
 
 O frontend consome `@vagnernogueira/vsshellcode` pelo GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para o registry npm do GitHub e referencia `GITHUB_TOKEN` sem versionar credenciais.
 
-O token usado para instalar a dependência precisa ter permissão `read:packages`. Com o GitHub CLI autenticado, configure a variável na sessão antes de instalar ou construir:
+O token usado para instalar a dependência precisa ter permissão só `read:packages` — não reaproveite o token de autenticação interativa do `gh` CLI (`gh auth token`), que tem escopo bem mais amplo. Gere um PAT dedicado em `https://github.com/settings/tokens/new` (clássico, escopo `read:packages`) e guarde em `~/.env` sob a chave `GITHUB_PACKAGES_TOKEN` (nome agnóstico de projeto, reutilizável em outros repositórios). Antes de instalar ou construir:
 
 ```bash
-export GITHUB_TOKEN="$(gh auth token)"
+source ~/.env && export GITHUB_TOKEN="$GITHUB_PACKAGES_TOKEN"
 ```
 
-Em CI, forneça `GITHUB_TOKEN` (ou um PAT com `read:packages`) como segredo do job; nunca grave o valor no repositório.
+Em CI, o secret `GH_PACKAGES_TOKEN` (mesmo PAT, escopo `read:packages`) é injetado pelo workflow; nunca grave o valor no repositório.
 
 ### Instalação e Configuração
 
@@ -61,7 +61,7 @@ npm --workspace=frontend run build
 ### Como Executar
 
 ```bash
-# Via container (recomendado; requer GITHUB_TOKEN configurado acima)
+# Via container (recomendado; requer GITHUB_TOKEN=$GITHUB_PACKAGES_TOKEN configurado acima)
 make build
 make run
 
