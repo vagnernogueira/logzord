@@ -9,6 +9,7 @@ import {
   ShellTabs,
   ShellPanel,
   ShellStatusBar,
+  useShellKeybindings,
   type ShellStatusBarItem,
 } from '@vagnernogueira/vsshellcode/vue'
 import { views } from '@/views.config'
@@ -45,7 +46,15 @@ setOnLogEntry((line: string, offset: number) => {
 const wsState = computed(() => getWsState())
 
 const activeSection = ref<string | null>(views[0]?.id ?? null)
+const lastActiveViewId = ref<string | null>(activeSection.value)
 const activeView = computed(() => views.find(({ id }) => id === activeSection.value) ?? views[0]!)
+
+watch(activeSection, (id) => {
+  if (id !== null) {
+    lastActiveViewId.value = id
+  }
+})
+
 const activeViewProps = computed(() =>
   activeView.value.id === 'targets'
     ? {
@@ -92,6 +101,28 @@ function closeTab(id: string) {
 
 const panelOpen = ref(false)
 
+function toggleSidebar() {
+  if (activeSection.value === null) {
+    activeSection.value = lastActiveViewId.value ?? views[0]?.id ?? null
+    return
+  }
+
+  lastActiveViewId.value = activeSection.value
+  activeSection.value = null
+}
+
+function togglePanel() {
+  panelOpen.value = !panelOpen.value
+}
+
+function openCommandPalette() {}
+
+useShellKeybindings({
+  onToggleSidebar: toggleSidebar,
+  onTogglePanel: togglePanel,
+  onOpenCommandPalette: openCommandPalette,
+})
+
 const statusBarLeftItems = computed<ShellStatusBarItem[]>(() => [
   {
     id: 'ws-state',
@@ -114,7 +145,7 @@ const statusBarRightItems = computed<ShellStatusBarItem[]>(() => [
 
 function handleStatusBarItemClick(id: string) {
   if (id === 'panel') {
-    panelOpen.value = !panelOpen.value
+    togglePanel()
   }
 }
 </script>
