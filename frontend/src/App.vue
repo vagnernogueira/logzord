@@ -1,8 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
-import AppSidebar from '@/components/AppSidebar.vue'
+import type { Target } from '@/types'
+import {
+  ShellActivityBar,
+  ShellSidebar,
+  ShellTabs,
+  ShellPanel,
+  type ShellActivityBarItem,
+} from '@vagnernogueira/vsshellcode/vue'
+import TargetsSection from '@/components/TargetsSection.vue'
+import AnalysisSection from '@/components/AnalysisSection.vue'
 import LogToolbar from '@/components/LogToolbar.vue'
 import LogViewer from '@/components/LogViewer.vue'
 import StatusBar from '@/components/StatusBar.vue'
@@ -31,29 +40,85 @@ const {
   exportRecord,
 } = useRecording()
 
-// Wire recording to log stream via callback
 setOnLogEntry((line: string, offset: number) => {
   recordLine(line, offset, filterText.value)
 })
 
-// Expose reactive wsState for StatusBar
 const wsState = computed(() => getWsState())
+
+const activitySections: ShellActivityBarItem[] = [
+  { id: 'targets', icon: 'files', title: 'Logs' },
+  { id: 'analysis', icon: 'graph', title: 'Análise' },
+]
+
+const activeSection = ref<string | null>('targets')
+const openTargetIds = ref<string[]>([])
+
+watch(selectedTarget, (target) => {
+  if (target && !openTargetIds.value.includes(target.id)) {
+    openTargetIds.value.push(target.id)
+  }
+})
+
+const tabs = computed(() =>
+  openTargetIds.value
+    .map((id) => targets.value.find((target) => target.id === id))
+    .filter((target): target is Target => !!target)
+    .map((target) => ({ id: target.id, label: target.name, icon: 'file' })),
+)
+
+function activateTab(id: string) {
+  const target = targets.value.find((item) => item.id === id)
+  if (target) selectTarget(target)
+}
+
+function closeTab(id: string) {
+  if (openTargetIds.value.length <= 1) return
+
+  const closingActive = selectedTarget.value?.id === id
+  openTargetIds.value = openTargetIds.value.filter((tabId) => tabId !== id)
+
+  if (closingActive) {
+    const fallbackId = openTargetIds.value[openTargetIds.value.length - 1]
+    const fallback = targets.value.find((target) => target.id === fallbackId)
+    if (fallback) selectTarget(fallback)
+  }
+}
+
+const panelOpen = ref(false)
 </script>
 
 <template>
-  <div class="flex h-screen w-full bg-slate-950 text-slate-300 font-sans dark custom-scrollbar">
-    <AppSidebar
-      :targets="targets"
-      :selected-target="selectedTarget"
-      :recorded-count="recordedCount"
-      :is-recording="isRecording"
-      @select-target="selectTarget"
-      @export-record="exportRecord"
-      @clear-record="clearRecord"
-      @toggle-record="toggleRecord"
+  <div class="shell dark custom-scrollbar">
+    <ShellActivityBar
+      v-model:activeId="activeSection"
+      :items="activitySections"
     />
 
-    <main class="flex-1 flex flex-col min-w-0 bg-slate-950 relative overflow-hidden">
+    <ShellSidebar :open="activeSection !== null">
+      <TargetsSection
+        v-if="activeSection === 'targets'"
+        :targets="targets"
+        :selected-target="selectedTarget"
+        @select-target="selectTarget"
+      />
+      <AnalysisSection
+        v-else-if="activeSection === 'analysis'"
+        :recorded-count="recordedCount"
+        :is-recording="isRecording"
+        @export-record="exportRecord"
+        @clear-record="clearRecord"
+      />
+    </ShellSidebar>
+
+    <div class="main">
+      <ShellTabs
+        :tabs="tabs"
+        :active-tab-id="selectedTarget?.id ?? null"
+        @update:active-tab-id="activateTab"
+        @close="closeTab"
+      />
+
       <LogToolbar
         :is-playing="isPlaying"
         :is-recording="isRecording"
@@ -69,12 +134,14 @@ const wsState = computed(() => getWsState())
         :syntax-highlight="syntaxHighlight"
       />
 
-      <StatusBar
-        :ws-state="wsState"
-        :ws-url="WS_URL"
-        :current-ws-offset="currentWsOffset"
-      />
-    </main>
+      <ShellPanel :open="panelOpen" />
+    </div>
+
+    <StatusBar
+      :ws-state="wsState"
+      :ws-url="WS_URL"
+      :current-ws-offset="currentWsOffset"
+    />
   </div>
 </template>
 
