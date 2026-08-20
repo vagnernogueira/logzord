@@ -20,3 +20,22 @@ Fonte consultada: `node_modules/@vagnernogueira/vsshellcode/dist/vue/*`.
 
 - Nenhuma implementação feita nesta sessão.
 - Nenhum teste/lint/build executado, pois não houve mudança de código.
+
+# HANDOFF — logzord#1 / S9 — Consolidação, testes e documentação
+
+## Entrega
+
+- Criado `frontend/src/App.spec.ts` com mocks dos componentes oficiais do `@vagnernogueira/vsshellcode/vue` e cobertura da composição do `App.vue`: troca de view, colapso da sidebar, tabs e toggle do panel.
+- Atualizados `_docs/ARCHITECTURE.md` e `_docs/ia-context/project-overlay/context.md` com a dependência `@vagnernogueira/vsshellcode` `^1.0.1`, GitHub Packages/`frontend/.npmrc`, bridging VS Code → Tailwind, requisito futuro de `read:packages` em CI e destino do branch piloto.
+- `pilot/vsshellcode-integration` permanece local-only, superseded pela adoção do pacote; deve ser descartado após o merge por decisão do humano. O branch não foi deletado.
+
+## Validação
+
+- Gate delegado `pi-usko-usher` (`dev-intern`): **green** — `npm run lint`, `npm run test` (5/5) e `npm run build` no frontend.
+- `make build`: **green** — build das imagens concluído (`0 units compiled`).
+- Registro do dispatch: `/home/vagner/agents/dev-lead/state/ticket-memory/logzord-1.cost-ledger.jsonl`, role `internal-gate:S9`.
+
+## Commits
+
+- `a8627c5 test(frontend): cover App shell composition`
+- Este handoff e a documentação estão no commit `docs: finalize vsshellcode adoption documentation` desta etapa.
