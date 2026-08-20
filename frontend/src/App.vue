@@ -159,7 +159,7 @@ const statusBarLeftItems = computed<ShellStatusBarItem[]>(() => [
 const statusBarRightItems = computed<ShellStatusBarItem[]>(() => [
   {
     id: 'offset',
-    label: `OFFSET: ${currentWsOffset} bytes`,
+    label: `OFFSET: ${currentWsOffset.value} bytes`,
   },
 ])
 
