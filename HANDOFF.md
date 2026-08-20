@@ -85,3 +85,24 @@ Fonte consultada: `node_modules/@vagnernogueira/vsshellcode/dist/vue/*`.
 - `6eb94a8 chore(frontend): remove orphaned shell components`
 - `5ea822e refactor(frontend): use shell color tokens for targets`
 - `fix(build): mount GitHub token as build secret`
+
+# HANDOFF — logzord#5 / Rotação do GH_PACKAGES_TOKEN
+
+## Entrega
+
+- PAT dedicado (escopo só `read:packages`) gerado manualmente pelo usuário via GitHub UI, substituindo o reaproveitamento do token amplo de sessão interativa do `gh` CLI (`gh auth token`) usado desde a issue #4.
+- `GH_PACKAGES_TOKEN` rotacionado no repo via `gh secret set`, lendo de `~/.env` (chave `GITHUB_PACKAGES_TOKEN`, nome agnóstico de projeto — reutilizável em outros repositórios).
+- `README.md` (linhas 36-42, 64) atualizado: fluxo de build local passa a usar `source ~/.env && export GITHUB_TOKEN="$GITHUB_PACKAGES_TOKEN"` em vez de `export GITHUB_TOKEN="$(gh auth token)"`.
+- Versão bumpada `1.2.0` → `1.2.1` e tag `v1.2.1` criada/pushada para validar a publicação de imagens fim a fim na CI real.
+
+## Validação
+
+- Build local (`make build`): **green** — backend e frontend; `npm install` de `@vagnernogueira/vsshellcode` autenticado com o PAT novo.
+- Workflow `docker-publish.yml` (run `32421134395`, tag `v1.2.1`): **green** — jobs `test`, `build-backend`, `build-frontend`.
+- Imagens confirmadas no GHCR (`ghcr.io/vagnernogueira/logzord-backend`, `logzord-frontend`) com tags `v1.2.1`, `latest`, `v1.2`, `v1`.
+
+## Commits
+
+- `71add56 docs: document dedicated read:packages PAT for GitHub Packages auth`
+- `f7e1485 chore(release): bump version to 1.2.1`
+- Este handoff está no commit `docs: record GH_PACKAGES_TOKEN rotation handoff`.
