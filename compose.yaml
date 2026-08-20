@@ -21,6 +21,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Containerfile
+      args:
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
     container_name: logzord-frontend
     ports:
       - "8081:80"

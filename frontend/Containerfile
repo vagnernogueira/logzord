@@ -3,7 +3,11 @@ FROM docker.io/node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+ARG GITHUB_TOKEN
+RUN test -n "$GITHUB_TOKEN" \
+  && printf '@vagnernogueira:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$GITHUB_TOKEN" > .npmrc \
+  && npm install \
+  && rm .npmrc
 
 COPY . .
 RUN npm run build

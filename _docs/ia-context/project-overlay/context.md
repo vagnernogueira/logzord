@@ -36,7 +36,7 @@
 - `frontend/src/App.vue` compõe `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellPanel`, `ShellStatusBar` e `ShellCommandPalette` de `@vagnernogueira/vsshellcode/vue`; as views são declaradas em `frontend/src/views.config.ts`.
 - `frontend/src/main.ts` importa o tema e o shell CSS do pacote antes de `frontend/src/style.css`.
 - O bridging de cor segue VS Code → Tailwind: as variáveis `--vscode-*` do shell são a fonte única e os tokens semânticos Tailwind/shadcn derivam delas em `frontend/src/style.css`; `tailwind.config.js` mantém suporte a alpha via `color-mix`.
-- A instalação de `@vagnernogueira/vsshellcode` usa `frontend/.npmrc`, que aponta `@vagnernogueira` para `https://npm.pkg.github.com` e referencia `${GITHUB_TOKEN}` em vez de versionar credenciais.
+- A instalação de `@vagnernogueira/vsshellcode` usa o `.npmrc` na raiz do workspace, que aponta `@vagnernogueira` para `https://npm.pkg.github.com` e referencia `${GITHUB_TOKEN}` em vez de versionar credenciais; o Containerfile recebe esse token como build argument.
 
 ### Dependências de instalação e CI
 

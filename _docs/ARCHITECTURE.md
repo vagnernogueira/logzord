@@ -104,7 +104,7 @@ frontend/src/
 ### 3.5 Shell oficial, registry e tema
 
 - `frontend/package.json` depende de `@vagnernogueira/vsshellcode` na faixa `^1.0.1`.
-- O pacote é consumido pelo registry do GitHub Packages. `frontend/.npmrc` direciona o escopo `@vagnernogueira` para `https://npm.pkg.github.com` e usa `${GITHUB_TOKEN}` como token de instalação; nenhum token é versionado.
+- O pacote é consumido pelo registry do GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para `https://npm.pkg.github.com` e usa `${GITHUB_TOKEN}` como token de instalação; nenhum token é versionado. O build do frontend recebe esse token como build argument.
 - `frontend/src/main.ts` importa `@vagnernogueira/vsshellcode/css/theme.css` e `shell.css` antes de `frontend/src/style.css`.
 - O bridging de cor adotado na Fase 6 usa VS Code → Tailwind: as variáveis `--vscode-*` fornecidas pelo shell são a fonte única, e `frontend/src/style.css` mapeia os tokens semânticos do Tailwind/shadcn para elas. `tailwind.config.js` preserva utilitários de opacidade com `color-mix`.
 - Hoje não existe `.github/workflows/` no repositório. Um futuro workflow que instale a dependência scoped deverá ter `GITHUB_TOKEN` ou PAT com scope `read:packages`.
@@ -176,7 +176,7 @@ _docs/
 | :--- | :--- |
 | `backend/targets.json` | Lista de alvos de log disponíveis para streaming |
 | `frontend/package.json` | Dependências e scripts do frontend, incluindo `@vagnernogueira/vsshellcode` |
-| `frontend/.npmrc` | Registry scoped do GitHub Packages e referência ao `GITHUB_TOKEN` |
+| `.npmrc` | Registry scoped do GitHub Packages e referência ao `GITHUB_TOKEN` |
 | `frontend/src/main.ts` | Imports globais do tema/shell oficial antes do CSS da aplicação |
 | `frontend/src/style.css` | Bridging dos tokens `--vscode-*` para os tokens semânticos Tailwind/shadcn |
 | `frontend/src/views.config.ts` | Catálogo declarativo das views da sidebar |
@@ -192,7 +192,7 @@ _docs/
 | :--- | :--- | :--- | :--- | :--- |
 | Filesystem (NFS/local) | Infraestrutura | — | Alta | Onda 1 |
 | `@vagnernogueira/vsshellcode` `^1.0.1` | Shell Vue 3 | GitHub Packages (`npm.pkg.github.com`) | Alta no frontend | Onda 8 |
-| GitHub Packages | Registry npm | `frontend/.npmrc` + `GITHUB_TOKEN`/PAT `read:packages` | Alta para instalação | Onda 8 |
+| GitHub Packages | Registry npm | `.npmrc` + `GITHUB_TOKEN`/PAT `read:packages` | Alta para instalação | Onda 8 |
 
 ## 10. Histórico de Ondas e Changelog
 
