@@ -104,7 +104,7 @@ frontend/src/
 ### 3.5 Shell oficial, registry e tema
 
 - `frontend/package.json` depende de `@vagnernogueira/vsshellcode` na faixa `^1.0.1`.
-- O pacote é consumido pelo registry do GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para `https://npm.pkg.github.com` e usa `${GITHUB_TOKEN}` como token de instalação; nenhum token é versionado. O build do frontend recebe esse token como build argument.
+- O pacote é consumido pelo registry do GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para `https://npm.pkg.github.com` e usa `${GITHUB_TOKEN}` como token de instalação; nenhum token é versionado. O `make build` grava o token em um arquivo temporário com permissões restritas e o monta como segredo apenas durante o build do frontend; o token não é interpolado no Compose nem persistido em uma layer da imagem.
 - `frontend/src/main.ts` importa `@vagnernogueira/vsshellcode/css/theme.css` e `shell.css` antes de `frontend/src/style.css`.
 - O bridging de cor adotado na Fase 6 usa VS Code → Tailwind: as variáveis `--vscode-*` fornecidas pelo shell são a fonte única, e `frontend/src/style.css` mapeia os tokens semânticos do Tailwind/shadcn para elas. `tailwind.config.js` preserva utilitários de opacidade com `color-mix`.
 - Hoje não existe `.github/workflows/` no repositório. Um futuro workflow que instale a dependência scoped deverá ter `GITHUB_TOKEN` ou PAT com scope `read:packages`.

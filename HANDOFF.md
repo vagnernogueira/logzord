@@ -44,7 +44,7 @@ Fonte consultada: `node_modules/@vagnernogueira/vsshellcode/dist/vue/*`.
 
 ## Entrega
 
-- RED-0: registry do GitHub Packages movido para o `.npmrc` raiz; o Containerfile e o Compose propagam `GITHUB_TOKEN` ao build do frontend.
+- RED-0: registry do GitHub Packages movido para o `.npmrc` raiz; o `make build` injeta `GITHUB_TOKEN` via arquivo temporário montado como segredo do Podman, sem expô-lo no Compose ou nas layers do frontend.
 - RED-2: offset WebSocket renderizado com `currentWsOffset.value`.
 - RED-3: props das views declaradas em `frontend/src/views.config.ts`, sem seleção por id no `App.vue`.
 - RED-6: área `.editor-area` adicionada e as paletas dos componentes de análise, toolbar e viewer derivadas dos tokens VS Code → Tailwind.
@@ -65,3 +65,23 @@ Fonte consultada: `node_modules/@vagnernogueira/vsshellcode/dist/vue/*`.
 - `03d30a2 refactor(frontend): move view props into declarative config`
 - `b6008e4 refactor(frontend): bridge editor surfaces to shell tokens`
 - `892566a docs: document frontend installation and validation`
+
+# HANDOFF — logzord#1 / Correção pós-revisão externa (claude)
+
+## Entrega
+
+- Removidos os órfãos `frontend/src/components/AppSidebar.vue` e `frontend/src/components/StatusBar.vue`; nenhuma importação foi encontrada antes do `git rm`.
+- `frontend/src/components/TargetsSection.vue` migrado para `bg-primary`, `text-primary-foreground`, `hover:bg-accent`, `text-muted-foreground` e tokens relacionados, mantendo a paleta do shell.
+- O token do GitHub Packages deixou de ser build arg interpolado no Compose: `frontend/Containerfile` usa `ARG GITHUB_TOKEN` sem default e `RUN --mount=type=secret,id=GITHUB_TOKEN`; `make build` cria apenas um arquivo temporário restrito e executa o build com `--secret ... type=file`. O Compose referencia somente a imagem frontend já construída.
+
+## Validação
+
+- Gate delegado `pi-maya-mace` (`dev-intern`): **green** — lint, testes e build do frontend, `make build`, consumo do segredo via `type=file`, `podman compose config` sem o valor do token e sem token nas layers.
+- Cost ledger registrado em `/home/vagner/agents/dev-lead/state/ticket-memory/logzord-1.cost-ledger.jsonl` como `internal-gate:fix-claude` para os dispatches do gate.
+- Nenhum valor literal de token foi encontrado nos arquivos rastreados ou nos padrões de histórico consultados; **flag de rotação: não aplicável**.
+
+## Commits
+
+- `6eb94a8 chore(frontend): remove orphaned shell components`
+- `5ea822e refactor(frontend): use shell color tokens for targets`
+- `fix(build): mount GitHub token as build secret`
