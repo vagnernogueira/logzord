@@ -8,13 +8,14 @@ import {
   ShellSidebar,
   ShellTabs,
   ShellPanel,
+  ShellStatusBar,
   type ShellActivityBarItem,
+  type ShellStatusBarItem,
 } from '@vagnernogueira/vsshellcode/vue'
 import TargetsSection from '@/components/TargetsSection.vue'
 import AnalysisSection from '@/components/AnalysisSection.vue'
 import LogToolbar from '@/components/LogToolbar.vue'
 import LogViewer from '@/components/LogViewer.vue'
-import StatusBar from '@/components/StatusBar.vue'
 
 const {
   targets,
@@ -23,7 +24,6 @@ const {
   filterText,
   filteredLogs,
   currentWsOffset,
-  WS_URL,
   selectTarget,
   togglePlay,
   syntaxHighlight,
@@ -86,6 +86,32 @@ function closeTab(id: string) {
 }
 
 const panelOpen = ref(false)
+
+const statusBarLeftItems = computed<ShellStatusBarItem[]>(() => [
+  {
+    id: 'ws-state',
+    icon: wsState.value === 1 ? 'circle-filled' : 'circle-outline',
+    label: wsState.value === 1 ? 'Conectado' : 'Desconectado',
+  },
+  {
+    id: 'panel',
+    icon: panelOpen.value ? 'panel-close' : 'panel-right',
+    label: 'Panel',
+  },
+])
+
+const statusBarRightItems = computed<ShellStatusBarItem[]>(() => [
+  {
+    id: 'offset',
+    label: `OFFSET: ${currentWsOffset} bytes`,
+  },
+])
+
+function handleStatusBarItemClick(id: string) {
+  if (id === 'panel') {
+    panelOpen.value = !panelOpen.value
+  }
+}
 </script>
 
 <template>
@@ -137,10 +163,10 @@ const panelOpen = ref(false)
       <ShellPanel :open="panelOpen" />
     </div>
 
-    <StatusBar
-      :ws-state="wsState"
-      :ws-url="WS_URL"
-      :current-ws-offset="currentWsOffset"
+    <ShellStatusBar
+      :left-items="statusBarLeftItems"
+      :right-items="statusBarRightItems"
+      @item-click="handleStatusBarItemClick"
     />
   </div>
 </template>
