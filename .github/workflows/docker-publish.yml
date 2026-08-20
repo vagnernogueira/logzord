@@ -1,0 +1,123 @@
+name: Docker publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+      - name: Lint frontend
+        run: npm run --workspace=frontend lint
+
+      - name: Test frontend
+        run: npm run --workspace=frontend test
+
+      - name: Test backend
+        run: npm run --workspace=backend test
+
+  build-backend:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Image metadata (backend)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/vagnernogueira/logzord-backend
+          tags: |
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}
+            type=semver,pattern=v{{major}}.{{minor}}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  build-frontend:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Image metadata (frontend)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/vagnernogueira/logzord-frontend
+          tags: |
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}
+            type=semver,pattern=v{{major}}.{{minor}}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=${{ secrets.FRONTEND_HTTP_URL }}
+            VITE_WS_URL=${{ secrets.FRONTEND_WS_URL }}
+          secrets: |
+            GITHUB_TOKEN=${{ secrets.GH_PACKAGES_TOKEN }}
