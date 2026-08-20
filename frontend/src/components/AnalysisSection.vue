@@ -15,19 +15,19 @@ const emit = defineEmits<{
 
 <template>
   <div class="p-2">
-    <Card class="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+    <Card class="bg-card/50 border-border backdrop-blur-sm">
       <CardHeader class="p-4 pb-2">
-        <CardTitle class="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Quadro de Análise
         </CardTitle>
       </CardHeader>
       <CardContent class="px-4 pb-2">
-        <p class="text-2xl font-bold text-white mb-2">
-          {{ recordedCount }} <span class="text-sm font-normal text-slate-500">linhas</span>
+        <p class="text-2xl font-bold text-foreground mb-2">
+          {{ recordedCount }} <span class="text-sm font-normal text-muted-foreground">linhas</span>
         </p>
         <p
           v-if="isRecording"
-          class="text-xs text-red-400"
+          class="text-xs text-destructive"
         >
           Gravando...
         </p>
@@ -36,7 +36,7 @@ const emit = defineEmits<{
         <Button
           variant="secondary"
           size="sm"
-          class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs border border-slate-600"
+          class="flex-1 text-xs border border-border"
           @click="emit('export-record')"
         >
           Exportar
@@ -44,7 +44,7 @@ const emit = defineEmits<{
         <Button
           variant="destructive"
           size="sm"
-          class="flex-1 bg-red-900/40 hover:bg-red-900/60 text-red-400 text-xs border border-red-900/50"
+          class="flex-1 text-xs border border-destructive/50"
           @click="emit('clear-record')"
         >
           Limpar

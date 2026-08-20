@@ -191,20 +191,22 @@ function handleStatusBarItemClick(id: string) {
         @close="closeTab"
       />
 
-      <LogToolbar
-        :is-playing="isPlaying"
-        :is-recording="isRecording"
-        :filter-text="filterText"
-        @toggle-play="togglePlay"
-        @toggle-record="toggleRecord"
-        @update:filter-text="filterText = $event"
-      />
+      <div class="editor-area flex min-h-0 flex-1 flex-col !p-0 overflow-hidden">
+        <LogToolbar
+          :is-playing="isPlaying"
+          :is-recording="isRecording"
+          :filter-text="filterText"
+          @toggle-play="togglePlay"
+          @toggle-record="toggleRecord"
+          @update:filter-text="filterText = $event"
+        />
 
-      <LogViewer
-        :filtered-logs="filteredLogs"
-        :is-playing="isPlaying"
-        :syntax-highlight="syntaxHighlight"
-      />
+        <LogViewer
+          :filtered-logs="filteredLogs"
+          :is-playing="isPlaying"
+          :syntax-highlight="syntaxHighlight"
+        />
+      </div>
 
       <ShellPanel :open="panelOpen" />
     </div>

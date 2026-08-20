@@ -15,11 +15,11 @@ defineProps<{
   >
     <div
       v-if="filteredLogs.length === 0"
-      class="h-full flex items-center justify-center text-slate-500 flex-col"
+      class="h-full flex items-center justify-center text-muted-foreground flex-col"
     >
       <div
         v-if="isPlaying"
-        class="w-16 h-16 border-4 border-slate-800 border-t-blue-500 rounded-full animate-spin mb-4 opacity-50"
+        class="w-16 h-16 border-4 border-muted border-t-primary rounded-full animate-spin mb-4 opacity-50"
       />
       <p>{{ isPlaying ? 'Aguardando logs...' : 'Streaming pausado. Clique no Play para iniciar.' }}</p>
     </div>
@@ -27,7 +27,7 @@ defineProps<{
     <div
       v-for="log in filteredLogs"
       :key="log.id"
-      class="hover:bg-slate-800/50 px-2 py-0.5 rounded transition-colors break-all whitespace-pre-wrap border-l-2 border-transparent hover:border-slate-600"
+      class="hover:bg-accent/50 px-2 py-0.5 rounded transition-colors break-all whitespace-pre-wrap border-l-2 border-transparent hover:border-border"
       v-html="syntaxHighlight(log.content)"
     />
   </div>
