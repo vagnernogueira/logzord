@@ -110,7 +110,7 @@ export function useLogStream() {
         currentWsOffset.value = data.offset
         scrollToBottom()
       } else if (data.type === 'STREAM_END') {
-        // The backend finished this read cycle and keeps polling while streaming.
+        isPlaying.value = false
       } else if (data.type === 'ERROR') {
         console.error('Server error:', data.message)
         isPlaying.value = false
