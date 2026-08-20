@@ -57,17 +57,13 @@ watch(activeSection, (id) => {
   }
 })
 
-const activeViewProps = computed(() =>
-  activeView.value.id === 'targets'
-    ? {
-        targets: targets.value,
-        selectedTarget: selectedTarget.value,
-      }
-    : {
-        recordedCount: recordedCount.value,
-        isRecording: isRecording.value,
-      },
-)
+const viewPropsContext = computed(() => ({
+  targets: targets.value,
+  selectedTarget: selectedTarget.value,
+  recordedCount: recordedCount.value,
+  isRecording: isRecording.value,
+}))
+const activeViewProps = computed(() => activeView.value.props(viewPropsContext.value))
 const openTargetIds = ref<string[]>([])
 
 watch(selectedTarget, (target) => {
