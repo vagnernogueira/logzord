@@ -1,1 +1,0 @@
-../_docs/ia-context/project-overlay/copilot-instructions.md

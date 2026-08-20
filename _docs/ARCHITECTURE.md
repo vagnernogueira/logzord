@@ -130,13 +130,12 @@ frontend/src/
     [ wkr/generate-logs.sh ] ----> [ wkr/sample.log ]
 ```
 
-## 5. Estrutura IA-First de Documentação
+## 5. Estrutura de Documentação
 
 ```filesystem
 _docs/
 ├── ARCHITECTURE.md                # Hub central (este documento)
-├── PRD.md                         # Escopo e requisitos do produto
-└── ia-context/                    # Contexto operacional e guardrails para IA
+└── PRD.md                         # Escopo e requisitos do produto
 ```
 
 ## 6. Mapa de Módulos Arquiteturais
