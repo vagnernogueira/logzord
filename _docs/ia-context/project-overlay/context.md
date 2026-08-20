@@ -11,6 +11,7 @@
 ### Stack principal
 
 - Frontend: Vue 3, TypeScript, Vite, Tailwind CSS.
+- Shell de UI: `@vagnernogueira/vsshellcode` `^1.0.1`, consumido como pacote Vue 3 pelo GitHub Packages.
 - Backend: Node.js, JavaScript, Express, WebSocket (`ws`).
 - Infraestrutura: Podman/Docker Compose (`compose.yaml`), Containerfile por serviço.
 
@@ -32,3 +33,13 @@
 - Ícones: preferir `lucide-vue-next`.
 - Evitar SVG inline em novos componentes.
 - Estrutura de componentes em `frontend/src/components/`.
+- `frontend/src/App.vue` compõe `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellPanel`, `ShellStatusBar` e `ShellCommandPalette` de `@vagnernogueira/vsshellcode/vue`; as views são declaradas em `frontend/src/views.config.ts`.
+- `frontend/src/main.ts` importa o tema e o shell CSS do pacote antes de `frontend/src/style.css`.
+- O bridging de cor segue VS Code → Tailwind: as variáveis `--vscode-*` do shell são a fonte única e os tokens semânticos Tailwind/shadcn derivam delas em `frontend/src/style.css`; `tailwind.config.js` mantém suporte a alpha via `color-mix`.
+- A instalação de `@vagnernogueira/vsshellcode` usa o `.npmrc` na raiz do workspace, que aponta `@vagnernogueira` para `https://npm.pkg.github.com` e referencia `${GITHUB_TOKEN}` em vez de versionar credenciais; o `make build` grava o token em um arquivo temporário com permissões restritas e o monta como segredo apenas durante o build do Containerfile, sem interpolá-lo no Compose ou persistí-lo em uma layer.
+
+### Dependências de instalação e CI
+
+- O repositório atualmente não possui `.github/workflows/`.
+- Um workflow futuro que instale a dependência scoped deverá fornecer `GITHUB_TOKEN` ou PAT com scope `read:packages`.
+- O branch `pilot/vsshellcode-integration` é local-only e foi superseded pela adoção do pacote; após o merge, deve ser descartado conforme decisão do humano. Esta sessão não deleta o branch.

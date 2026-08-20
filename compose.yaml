@@ -18,9 +18,7 @@ services:
       - NODE_ENV=production
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Containerfile
+    image: logzord-frontend
     container_name: logzord-frontend
     ports:
       - "8081:80"

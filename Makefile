@@ -2,6 +2,7 @@
 
 # Como estamos operando com podman, usaremos podman-compose ou o comando nativo podman compose
 COMPOSE ?= podman compose
+CONTAINER_ENGINE ?= podman
 LOG_GENERATOR_SCRIPT ?= ./wkr/generate-logs.sh
 LOG_GENERATOR_PIDFILE ?= ./wkr/generate-logs.pid
 LOG_GENERATOR_OUT ?= ./wkr/generate-logs.out
@@ -15,8 +16,18 @@ stop:
 	$(COMPOSE) down
 
 build:
-	@echo "Construindo as imagens do projeto..."
-	$(COMPOSE) build
+	@set -eu; \
+	if [ -z "$${GITHUB_TOKEN:-}" ]; then \
+		echo "GITHUB_TOKEN precisa estar configurado para o build do frontend." >&2; \
+		exit 1; \
+	fi; \
+	secret_file="$$(mktemp)"; \
+	trap 'rm -f "$$secret_file"' EXIT; \
+	chmod 600 "$$secret_file"; \
+	printf '%s' "$$GITHUB_TOKEN" > "$$secret_file"; \
+	echo "Construindo as imagens do projeto..."; \
+	$(COMPOSE) build backend; \
+	$(CONTAINER_ENGINE) build --secret id=GITHUB_TOKEN,src="$$secret_file",type=file -f frontend/Containerfile -t logzord-frontend frontend
 
 logs:
 	$(COMPOSE) logs -f

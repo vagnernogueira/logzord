@@ -29,25 +29,39 @@ O Logzord é uma SPA Vue 3 com backend Node.js que permite monitorar arquivos de
 - Node.js 18+
 - Podman ou Docker com Compose
 
-### Instalação e Configuração
+### GitHub Packages
+
+O frontend consome `@vagnernogueira/vsshellcode` pelo GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para o registry npm do GitHub e referencia `GITHUB_TOKEN` sem versionar credenciais.
+
+O token usado para instalar a dependência precisa ter permissão `read:packages`. Com o GitHub CLI autenticado, configure a variável na sessão antes de instalar ou construir:
 
 ```bash
-# Instalar dependências
+export GITHUB_TOKEN="$(gh auth token)"
+```
+
+Em CI, forneça `GITHUB_TOKEN` (ou um PAT com `read:packages`) como segredo do job; nunca grave o valor no repositório.
+
+### Instalação e Configuração
+
+Execute os comandos a partir da raiz do repositório:
+
+```bash
+# Instalar dependências dos workspaces
 npm install
 ```
 
-Configure os alvos de log em `targets.json` na raiz do projeto.
+Configure os alvos de log em `backend/targets.json`.
 
 ### Como Compilar
 
 ```bash
-npm run build
+npm --workspace=frontend run build
 ```
 
 ### Como Executar
 
 ```bash
-# Via container (recomendado)
+# Via container (recomendado; requer GITHUB_TOKEN configurado acima)
 make build
 make run
 
@@ -58,7 +72,8 @@ make stop
 ### Como Executar os Testes
 
 ```bash
-npm run test
+npm --workspace=frontend run lint
+npm --workspace=frontend run test
 ```
 
 ## Ondas de Desenvolvimento
@@ -72,7 +87,5 @@ npm run test
 | Documento | Descrição |
 | :--- | :--- |
 | [`_docs/ARCHITECTURE.md`](./_docs/ARCHITECTURE.md) | Hub arquitetural — visão, contratos e decisões centrais |
-| [`_docs/architecture/frontend.md`](./_docs/architecture/frontend.md) | Detalhamento do frontend Vue 3 |
-| [`_docs/architecture/backend.md`](./_docs/architecture/backend.md) | Detalhamento do backend Node.js |
-| [`_docs/architecture/operations.md`](./_docs/architecture/operations.md) | Infraestrutura, Docker e Makefile |
-| [`_docs/decisoes/ADR-001-resume-offset.md`](./_docs/decisoes/ADR-001-resume-offset.md) | Decisão sobre controle de retomada por byte offset |
+| [`_docs/PRD.md`](./_docs/PRD.md) | Requisitos do produto |
+| [`_docs/ia-context/project-overlay/context.md`](./_docs/ia-context/project-overlay/context.md) | Contexto operacional do projeto |
