@@ -38,6 +38,7 @@ COPY backend/targets.json ./targets.json
 
 COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html
 
+COPY nginx-main.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY supervisord.conf /etc/supervisord.conf
 
