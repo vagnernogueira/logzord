@@ -103,4 +103,4 @@ As URLs do frontend são incorporadas na imagem durante o build via build-args; 
 | :--- | :--- |
 | [`_docs/ARCHITECTURE.md`](./_docs/ARCHITECTURE.md) | Hub arquitetural — visão, contratos e decisões centrais |
 | [`_docs/PRD.md`](./_docs/PRD.md) | Requisitos do produto |
-| [`_docs/ia-context/project-overlay/context.md`](./_docs/ia-context/project-overlay/context.md) | Contexto operacional do projeto |
+| [`AGENTS.md`](./AGENTS.md) | Contexto operacional do projeto (`CLAUDE.md` é symlink) |

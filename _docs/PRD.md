@@ -21,6 +21,7 @@ Analistas de suporte e desenvolvedores precisam monitorar logs em tempo real em 
 * **CA 3 - Mecanismo de Record:** Enquanto o botão "Record" estiver ativo, cada linha renderizada (respeitando o filtro ativo) deve sofrer um *append* em um buffer temporário de análise.
 * **CA 4 - Filtro Visual:** O filtro deve ocultar as linhas na tela, mas elas devem reaparecer instantaneamente caso o filtro seja removido (sem necessidade de reler o arquivo).
 * **CA 5 - Compressão de Saída:** Arquivos de download > 5MB devem ser entregues em formato .zip ou .gz, sem limite de tamanho máximo para o processo de compressão.
+  * ⚠️ **Pendente (não implementado):** `frontend/src/composables/useRecording.ts::exportRecord` hoje baixa sempre `.txt`, mesmo acima de 5MB, e apenas exibe um alerta informando que "seria compactado". A compressão real ainda não existe.
 
 ## Fora do Escopo 🚫
 * Telas de cadastro de paths ou servidores.

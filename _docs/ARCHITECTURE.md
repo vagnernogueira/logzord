@@ -62,6 +62,7 @@ O frontend foi decomposto em uma camada de orquestração em `App.vue`, dois com
 ```filesystem
 frontend/src/
 ├── App.vue
+├── App.spec.ts
 ├── commands.config.ts
 ├── views.config.ts
 ├── components/
@@ -69,13 +70,20 @@ frontend/src/
 │   ├── LogToolbar.vue
 │   ├── LogViewer.vue
 │   ├── TargetsSection.vue
+│   ├── TargetsSection.spec.ts
 │   └── ui/
 ├── composables/
 │   ├── useLogStream.ts
 │   └── useRecording.ts
+├── db/
+│   └── index.ts
+├── lib/
+│   └── utils.ts
 └── types/
   └── index.ts
 ```
+
+`db/index.ts` inicializa o Dexie/IndexedDB consumido por `useRecording.ts`. `lib/utils.ts` concentra helpers compartilhados pelos componentes `ui/` (padrão `shadcn-vue`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
 
 ### 3.2 Fluxo de dados
 
@@ -122,6 +130,7 @@ frontend/src/
 ```ascii
 [ App.vue ]
    |-- useLogStream() -----> GET /api/targets + WebSocket START_STREAM/PAUSE_STREAM
+   |                         (reconexão automática com backoff fixo de 5s em close/error)
    |-- useRecording() -----> Dexie / IndexedDB
    |
    +--> @vagnernogueira/vsshellcode/vue
@@ -130,12 +139,15 @@ frontend/src/
    +--> LogToolbar ---- play / record / filter
    +--> LogViewer ---- filteredLogs / syntaxHighlight
        |
-       v
-    [ Express Server ] ---- backend/targets.json / FS Streamer
-       ^
-       |
-    [ wkr/generate-logs.sh ] ----> [ wkr/sample.log ]
+       v (porta 3001, único ponto de contato externo do container)
+    [ Nginx ] -- estático (dist/) -- proxy /api, /ws --> [ Node/Express (127.0.0.1:3002) ]
+                                                              ---- backend/targets.json / FS Streamer
+                                                                 ^
+                                                                 |
+                                                          [ wkr/generate-logs.sh ] ----> [ wkr/sample.log ]
 ```
+
+Fora do container (dev local sem Nginx), o frontend conecta direto no backend Node, que escuta na porta 3001 por padrão (`process.env.PORT || 3001`, ver `backend/src/index.js`).
 
 ## 5. Estrutura de Documentação
 
@@ -158,6 +170,7 @@ _docs/
 - **Contrato de Streaming:** O backend deve enviar chunks de texto acompanhados do **byte offset** final daquele chunk.
 - **Protocolo de Pausa (CA2):** Ao retomar (Play), o frontend envia o último byte offset recebido; o servidor inicia o `createReadStream` a partir desse ponto exato.
 - **Endpoint de conexão WebSocket:** o frontend conecta em `<origem>/ws` (antes, na raiz). O `WebSocketServer` do backend não filtra por path, então a mudança é só do lado do client/roteamento — o protocolo de mensagens (`START_STREAM`, `PAUSE_STREAM`, `LOG_CHUNK`, `STREAM_END`, `ERROR`) não muda.
+- **Reconexão automática:** `useLogStream.ts` reconecta o WebSocket automaticamente após `close`/`error`, com espera fixa de 5s (`scheduleReconnect`), enquanto o composable estiver montado (`shouldReconnect`). Ao reabrir a conexão, se `isPlaying` ainda estiver ativo o cliente reenvia `START_STREAM` com o último `currentWsOffset` conhecido — a retomada após reconexão segue o mesmo contrato de byte offset do Play/Pause manual (ver [ADR-001](./decisoes/ADR-001-resume-offset.md)).
 
 ### 7.2 Decisões arquiteturais centrais
 
@@ -238,3 +251,8 @@ _docs/
   - **Data:** 2026-08-20
   - **Autor:** IA
   - **Mudanças:** Consolidação de frontend e backend em uma imagem única (ver issue #8). `Containerfile` único multi-stage substitui `backend/Containerfile`/`frontend/Containerfile`; Nginx passa a ser o único ponto de contato externo do container (porta 3001), servindo os estáticos do build e fazendo proxy reverso para o Node (porta interna 3002, não exposta), com `nginx.conf` e `supervisord.conf` novos. `compose.yaml` e `docker-publish.yml` passam a operar sobre um único serviço/imagem (`ghcr.io/vagnernogueira/logzord`). Endpoint de conexão WebSocket move de raiz para `/ws` (protocolo de mensagens inalterado).
+
+- **Versão 1.6**
+  - **Data:** 2026-08-21
+  - **Autor:** IA
+  - **Mudanças:** Auditoria de aderência doc-código. Criação do `ADR-001` (referenciado desde a v1.1 mas nunca escrito), documentação da reconexão automática de WebSocket (`useLogStream.ts`, implementada na demanda de 2026-04-01 e até então não registrada), atualização do diagrama de arquitetura (§4) para refletir o Nginx como ponto de entrada introduzido na v1.5, e complemento da estrutura de diretórios (§3.1) com `db/`, `lib/` e arquivos de teste existentes. Correção de link quebrado no `README.md` (apontava para `_docs/ia-context/` inexistente).
