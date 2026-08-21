@@ -113,7 +113,7 @@ frontend/src/
 
 - `pr-checks.yml` e `docker-publish.yml` seguem o padrão de dois workflows do template `~/dontpad/.github/workflows/`, com duas divergências deliberadas (revisadas na issue #6):
   - **`pr-checks.yml` existe e roda lint+test em todo PR para `main`.** O dontpad não tem esse workflow — lá o job `test` só roda dentro do `docker-publish.yml`, no momento do release (tag `v*` ou `workflow_dispatch`). Decisão: manter como guardrail mais rigoroso — pega lint/test quebrado antes do merge, não só no release.
-  - **`permissions` de `docker-publish.yml` são mais restritas que o template.** O dontpad declara `packages: write` no topo do workflow (herdado por todos os jobs, incluindo `test`). O logzord declara `packages: read` no topo e cada job de build (`build-backend`, `build-frontend`) sobrescreve para `packages: write`; o job `test` permanece com `read`. Decisão: manter o escopo restrito, por princípio de menor privilégio (o job `test` não precisa de `write` em packages).
+  - **`permissions` de `docker-publish.yml` são mais restritas que o template.** O dontpad declara `packages: write` no topo do workflow (herdado por todos os jobs, incluindo `test`). O logzord declara `packages: read` no topo e o job de build (`build`) sobrescreve para `packages: write`; o job `test` permanece com `read`. Decisão: manter o escopo restrito, por princípio de menor privilégio (o job `test` não precisa de `write` em packages).
 - Ambos os workflows usam `actions/checkout@v7` e `actions/setup-node@v7`, alinhados à versão do template (resolve o aviso de depreciação do runner Node 20 emitido em `actions/checkout@v4`/`actions/setup-node@v4`).
 - A instalação de `@vagnernogueira/vsshellcode` (dependência scoped privada via GitHub Packages) é um mecanismo específico do logzord, sem equivalente no template dontpad — usa `GH_PACKAGES_TOKEN` (PAT dedicado com scope `read:packages`, ver decisão da issue #5) tanto em `pr-checks.yml` quanto em `docker-publish.yml`.
 
@@ -149,7 +149,7 @@ _docs/
 
 - **[Frontend](#3-arquitetura-do-frontend):** Camada de UI Vue 3, composables e componentes de apresentação.
 - **[Backend](../backend/src/index.js):** Execução do streaming, API HTTP e WebSocket.
-- **[Operações](../compose.yaml):** Estrutura de deploy e execução local, com apoio de [Makefile](../Makefile) e dos containerfiles em [backend/Containerfile](../backend/Containerfile) e [frontend/Containerfile](../frontend/Containerfile).
+- **[Operações](../compose.yaml):** Estrutura de deploy e execução local, com apoio de [Makefile](../Makefile) e do [Containerfile](../Containerfile) único (imagem com Nginx + Node sob supervisord).
 
 ## 7. Contratos e Decisões Centrais
 
@@ -157,6 +157,7 @@ _docs/
 
 - **Contrato de Streaming:** O backend deve enviar chunks de texto acompanhados do **byte offset** final daquele chunk.
 - **Protocolo de Pausa (CA2):** Ao retomar (Play), o frontend envia o último byte offset recebido; o servidor inicia o `createReadStream` a partir desse ponto exato.
+- **Endpoint de conexão WebSocket:** o frontend conecta em `<origem>/ws` (antes, na raiz). O `WebSocketServer` do backend não filtra por path, então a mudança é só do lado do client/roteamento — o protocolo de mensagens (`START_STREAM`, `PAUSE_STREAM`, `LOG_CHUNK`, `STREAM_END`, `ERROR`) não muda.
 
 ### 7.2 Decisões arquiteturais centrais
 
@@ -191,6 +192,9 @@ _docs/
 | `wkr/sample.log` | Arquivo de log de exemplo consumido pelo alvo `sample` |
 | `compose.yaml` | Configuração Docker/Podman Compose |
 | `Makefile` | Comandos de build, execução e parada da aplicação |
+| `Containerfile` | Build multi-stage único (frontend Vite + deps do backend + imagem final Nginx/Node) |
+| `nginx.conf` | Roteamento Nginx: estático (`/`), proxy `/api` e `/ws` para o Node interno (`127.0.0.1:3002`) |
+| `supervisord.conf` | Supervisão dos processos `nginx` e `backend` (Node) dentro do mesmo container |
 
 ## 9. Dependências Externas e Integrações
 
@@ -229,3 +233,8 @@ _docs/
   - **Data:** 2026-08-20
   - **Autor:** IA
   - **Mudanças:** Registro da adoção do pacote `@vagnernogueira/vsshellcode` via GitHub Packages, do bridging de cor VS Code → Tailwind, da exigência futura de `read:packages` em CI e do destino humano do branch piloto local-only.
+
+- **Versão 1.5**
+  - **Data:** 2026-08-20
+  - **Autor:** IA
+  - **Mudanças:** Consolidação de frontend e backend em uma imagem única (ver issue #8). `Containerfile` único multi-stage substitui `backend/Containerfile`/`frontend/Containerfile`; Nginx passa a ser o único ponto de contato externo do container (porta 3001), servindo os estáticos do build e fazendo proxy reverso para o Node (porta interna 3002, não exposta), com `nginx.conf` e `supervisord.conf` novos. `compose.yaml` e `docker-publish.yml` passam a operar sobre um único serviço/imagem (`ghcr.io/vagnernogueira/logzord`). Endpoint de conexão WebSocket move de raiz para `/ws` (protocolo de mensagens inalterado).

@@ -1,15 +1,15 @@
 version: '3.8'
 
 services:
-  backend:
+  logzord:
     # Puxa a imagem publicada no GHCR (ver .github/workflows/docker-publish.yml).
     # Para testar um build local em vez do registry, comente a linha `image:`
-    # abaixo e descomente o bloco `build:`.
-    image: ghcr.io/vagnernogueira/logzord-backend:latest
+    # abaixo e descomente o bloco `build:` (requer GITHUB_TOKEN, ver `make build`).
+    image: ghcr.io/vagnernogueira/logzord:latest
     # build:
-    #   context: ./backend
+    #   context: .
     #   dockerfile: Containerfile
-    container_name: logzord-backend
+    container_name: logzord
     ports:
       - "3001:3001"
     volumes:
@@ -20,18 +20,3 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-
-  frontend:
-    # Puxa a imagem publicada no GHCR (ver .github/workflows/docker-publish.yml).
-    # Para testar um build local em vez do registry, comente a linha `image:`
-    # abaixo e descomente o bloco `build:` (requer GITHUB_TOKEN, ver `make build`).
-    image: ghcr.io/vagnernogueira/logzord-frontend:latest
-    # build:
-    #   context: ./frontend
-    #   dockerfile: Containerfile
-    container_name: logzord-frontend
-    ports:
-      - "8081:80"
-    depends_on:
-      - backend
-    restart: unless-stopped

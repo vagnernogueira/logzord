@@ -19,16 +19,15 @@ stop:
 build:
 	@set -eu; \
 	if [ -z "$${GITHUB_TOKEN:-}" ]; then \
-		echo "GITHUB_TOKEN precisa estar configurado para o build do frontend." >&2; \
+		echo "GITHUB_TOKEN precisa estar configurado para o build (instalação de @vagnernogueira/vsshellcode)." >&2; \
 		exit 1; \
 	fi; \
 	secret_file="$$(mktemp)"; \
 	trap 'rm -f "$$secret_file"' EXIT; \
 	chmod 600 "$$secret_file"; \
 	printf '%s' "$$GITHUB_TOKEN" > "$$secret_file"; \
-	echo "Construindo as imagens do projeto..."; \
-	$(COMPOSE) build backend; \
-	$(CONTAINER_ENGINE) build --secret id=GITHUB_TOKEN,src="$$secret_file",type=file -f frontend/Containerfile -t logzord-frontend frontend
+	echo "Construindo a imagem do Logzord..."; \
+	$(CONTAINER_ENGINE) build --secret id=GITHUB_TOKEN,src="$$secret_file",type=file -f Containerfile -t logzord .
 
 logs:
 	$(COMPOSE) logs -f

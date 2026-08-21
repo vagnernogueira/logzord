@@ -13,7 +13,7 @@ O Logzord é uma SPA Vue 3 com backend Node.js que permite monitorar arquivos de
 | **Frontend** | Vue 3 · TypeScript · Vite · Tailwind CSS |
 | **Backend** | Node.js · Express · WebSocket (`ws`) |
 | **Persistência** | Arquivos de log do filesystem (read-only) · `targets.json` |
-| **Infraestrutura** | Podman/Docker Compose |
+| **Infraestrutura** | Podman/Docker Compose · imagem única (Nginx + Node sob supervisord) |
 
 ## Principais Funcionalidades
 
@@ -78,7 +78,7 @@ npm --workspace=frontend run test
 
 ## CI/CD
 
-O workflow de PR executa lint e testes de frontend e backend. O workflow de publicação é executado em tags `v*` ou manualmente e publica as imagens privadas no GHCR somente após o gate de testes.
+O workflow de PR executa lint e testes de frontend e backend. O workflow de publicação é executado em tags `v*` ou manualmente e publica a imagem única (`ghcr.io/vagnernogueira/logzord`) no GHCR somente após o gate de testes.
 
 Configure `GH_PACKAGES_TOKEN`, `FRONTEND_HTTP_URL` e `FRONTEND_WS_URL` em **Settings > Secrets and variables > Actions**. `GITHUB_TOKEN` é fornecido automaticamente pelo GitHub Actions e não pode ser criado como secret do repositório:
 
@@ -87,7 +87,7 @@ Configure `GH_PACKAGES_TOKEN`, `FRONTEND_HTTP_URL` e `FRONTEND_WS_URL` em **Sett
 | `GH_PACKAGES_TOKEN` | PAT com permissão `read:packages` para instalar dependências privadas |
 | `GITHUB_TOKEN` | Token automático do GitHub Actions, usado para autenticar e publicar no GHCR; não criar manualmente |
 | `FRONTEND_HTTP_URL` | `https://logzordsrv.vagnernogueira.com/api` |
-| `FRONTEND_WS_URL` | `wss://logzordsrv.vagnernogueira.com` |
+| `FRONTEND_WS_URL` | `wss://logzordsrv.vagnernogueira.com/ws` |
 
 As URLs do frontend são incorporadas na imagem durante o build via build-args; no build da imagem, o token é fornecido como build secret e não como build-arg.
 
