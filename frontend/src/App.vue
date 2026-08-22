@@ -4,6 +4,7 @@ import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
 import type { Target } from '@/types'
 import {
+  ShellTitleBar,
   ShellActivityBar,
   ShellSidebar,
   ShellTabs,
@@ -11,6 +12,7 @@ import {
   ShellStatusBar,
   ShellCommandPalette,
   useShellKeybindings,
+  type ShellTitleBarMenuItem,
   type ShellStatusBarItem,
 } from '@vagnernogueira/vsshellcode/vue'
 import { commands } from '@/commands.config'
@@ -164,10 +166,23 @@ function handleStatusBarItemClick(id: string) {
     togglePanel()
   }
 }
+
+const titleBarMenuItems: ShellTitleBarMenuItem[] = [
+  { id: 'file', label: 'File' },
+  { id: 'edit', label: 'Edit' },
+  { id: 'selection', label: 'Selection' },
+  { id: 'view', label: 'View' },
+  { id: 'go', label: 'Go' },
+  { id: 'run', label: 'Run' },
+  { id: 'terminal', label: 'Terminal' },
+  { id: 'help', label: 'Help' },
+]
 </script>
 
 <template>
   <div class="shell dark custom-scrollbar">
+    <ShellTitleBar :menu-items="titleBarMenuItems" />
+
     <ShellActivityBar
       v-model:activeId="activeSection"
       :items="views"

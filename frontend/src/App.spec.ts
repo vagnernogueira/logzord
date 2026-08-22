@@ -24,10 +24,37 @@ vi.mock('@/composables/useRecording', () => ({
 vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
   const { defineComponent, h } = await import('vue')
 
+  type TitleBarMenuItem = { id: string; label: string }
   type ActivityBarItem = { id: string; icon: string; title: string }
   type ShellTab = { id: string; label: string; icon?: string }
   type StatusBarItem = { id: string; icon?: string; label: string }
   type Command = { id: string; title: string; icon?: string }
+
+  const ShellTitleBar = defineComponent({
+    name: 'ShellTitleBar',
+    props: {
+      menuItems: { type: Array as PropType<TitleBarMenuItem[]>, required: true },
+    },
+    emits: ['menu-click'],
+    setup(props, { emit }) {
+      return () =>
+        h(
+          'header',
+          { class: 'title-bar' },
+          props.menuItems.map((item) =>
+            h(
+              'button',
+              {
+                class: 'title-bar__menu-item',
+                type: 'button',
+                onClick: () => emit('menu-click', item.id),
+              },
+              item.label,
+            ),
+          ),
+        )
+    },
+  })
 
   const ShellActivityBar = defineComponent({
     name: 'ShellActivityBar',
@@ -167,6 +194,7 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
   })
 
   return {
+    ShellTitleBar,
     ShellActivityBar,
     ShellSidebar,
     ShellTabs,

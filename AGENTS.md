@@ -11,7 +11,7 @@ Núcleo: listagem de alvos de log, streaming contínuo, play/pause com retomada 
 ## Stack
 
 - **Frontend:** Vue 3 · TypeScript · Vite · Tailwind CSS
-- **Shell de UI:** `@vagnernogueira/vsshellcode` `^1.0.1`, pacote Vue 3 via GitHub Packages
+- **Shell de UI:** `@vagnernogueira/vsshellcode` `^1.1.4`, pacote Vue 3 via GitHub Packages
 - **Backend:** Node.js · JavaScript · Express · WebSocket (`ws`)
 - **Persistência:** Arquivos de log do filesystem (read-only) · `targets.json`
 - **Infraestrutura:** Podman/Docker Compose (`compose.yaml`) · Containerfile por serviço
@@ -65,7 +65,7 @@ Inventar endpoints/arquivos/comportamentos · omitir conflito documental · resp
 
 - Ícones: `lucide-vue-next` — sem SVG inline em novos componentes
 - Componentes em `frontend/src/components/`
-- `frontend/src/App.vue` compõe `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellPanel`, `ShellStatusBar` e `ShellCommandPalette` de `@vagnernogueira/vsshellcode/vue`; views declaradas em `frontend/src/views.config.ts`
+- `frontend/src/App.vue` compõe `ShellTitleBar`, `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellPanel`, `ShellStatusBar` e `ShellCommandPalette` de `@vagnernogueira/vsshellcode/vue`; views declaradas em `frontend/src/views.config.ts`
 - `frontend/src/main.ts` importa o tema e o shell CSS do pacote antes de `frontend/src/style.css`
 - Bridging de cor VS Code → Tailwind: variáveis `--vscode-*` do shell são a fonte única; tokens semânticos Tailwind/shadcn derivam delas em `frontend/src/style.css` (`tailwind.config.js` com suporte a alpha via `color-mix`)
 - Instalação de `@vagnernogueira/vsshellcode` via `.npmrc` na raiz (`@vagnernogueira` → `https://npm.pkg.github.com`, credencial via `${GITHUB_TOKEN}`, nunca versionada); build local injeta o token como secret de arquivo (`make build`), CI injeta como build secret (`.github/workflows/docker-publish.yml`)
