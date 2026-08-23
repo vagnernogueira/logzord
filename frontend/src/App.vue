@@ -167,16 +167,7 @@ function handleStatusBarItemClick(id: string) {
   }
 }
 
-const titleBarMenuItems: ShellTitleBarMenuItem[] = [
-  { id: 'file', label: 'File' },
-  { id: 'edit', label: 'Edit' },
-  { id: 'selection', label: 'Selection' },
-  { id: 'view', label: 'View' },
-  { id: 'go', label: 'Go' },
-  { id: 'run', label: 'Run' },
-  { id: 'terminal', label: 'Terminal' },
-  { id: 'help', label: 'Help' },
-]
+const titleBarMenuItems: ShellTitleBarMenuItem[] = []
 </script>
 
 <template>
