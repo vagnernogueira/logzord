@@ -181,10 +181,17 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = [
 
 <template>
   <div class="shell dark custom-scrollbar">
-    <ShellTitleBar :menu-items="titleBarMenuItems" />
+    <ShellTitleBar :menu-items="titleBarMenuItems">
+      <template #icon>
+        <span
+          role="img"
+          aria-label="Logzord"
+        >🤖</span>
+      </template>
+    </ShellTitleBar>
 
     <ShellActivityBar
-      v-model:activeId="activeSection"
+      v-model:active-id="activeSection"
       :items="views"
     />
 
