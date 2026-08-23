@@ -36,9 +36,11 @@ npm run build          # valida sintaxe após implementação
 npm run lint           # executa lint no pacote afetado
 npm run test           # executa testes existentes
 make stop              # para container local
-make build             # gera nova imagem (corrigir falhas antes de prosseguir)
-make run               # sobe a aplicação com as mudanças
+make build             # valida que a imagem builda sem erros (uso local pontual, não gera deploy)
+make run               # deploy local: pull + up da imagem publicada no GHCR (ghcr.io/vagnernogueira/logzord:latest)
 ```
+
+**Deploy local = `make stop` + `make run`, nunca `make build` seguido de subir a imagem local manualmente.** `make build` não recebe os build-args `VITE_API_URL`/`VITE_WS_URL` (só o workflow `.github/workflows/docker-publish.yml` os injeta via secrets); uma imagem gerada por `make build` e colocada no ar assume os defaults de código (`http://localhost:3001/api`, `ws://localhost:3001/ws`), quebrando o frontend para qualquer acesso que não seja `localhost:3001` direto (ex.: domínio público atrás de proxy/Cloudflare). Evitar gerar e rodar imagem local em substituição ao container em produção — sempre restaurar via `make run` após confirmar que a tag foi publicada (`gh run list --workflow "Docker publish"`).
 
 ## Regras obrigatórias
 
@@ -124,7 +126,7 @@ Endpoint context7: `https://mcp.context7.com/mcp` · auth: token por variável d
 - Trabalhar em etapas quando a demanda for multi-fase.
 - Fazer build/compile simples ao final da implementação para verificar erros de sintaxe e corrigi-los quando aplicável ao escopo.
 - Em implementações que envolvam frontend ou backend, executar também `npm run lint` no pacote afetado e, em seguida, `npm run test` para validar os testes existentes.
-- Após implementação, quando aplicável, usar `make stop`, `make build` e `make run`; corrigir falhas de build antes de prosseguir.
+- Após implementação, quando aplicável, validar a imagem com `make build` (sem subi-la) para corrigir falhas de build; o deploy local em si é sempre `make stop` + `make run` (pull da imagem publicada no GHCR), nunca a imagem gerada por `make build`.
 - Não efetuar testes no navegador web.
 
 ## Entrega padrão
