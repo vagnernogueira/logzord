@@ -171,13 +171,18 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
     />
 
     <ShellSidebar :open="activeSection !== null">
-      <component
-        :is="activeView.component"
-        v-bind="activeViewProps"
-        @select-target="selectTarget"
-        @export-record="exportRecord"
-        @clear-record="clearRecord"
-      />
+      <div class="sidebar__section">
+        <div class="sidebar__title">
+          {{ activeView.title }}
+        </div>
+        <component
+          :is="activeView.component"
+          v-bind="activeViewProps"
+          @select-target="selectTarget"
+          @export-record="exportRecord"
+          @clear-record="clearRecord"
+        />
+      </div>
     </ShellSidebar>
 
     <div class="main">

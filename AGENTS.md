@@ -11,7 +11,7 @@ Núcleo: listagem de alvos de log, streaming contínuo, play/pause com retomada 
 ## Stack
 
 - **Frontend:** Vue 3 · TypeScript · Vite · Tailwind CSS
-- **Shell de UI:** `@vagnernogueira/vsshellcode` `^1.1.4`, pacote Vue 3 via GitHub Packages
+- **Shell de UI:** `@vagnernogueira/vsshellcode` `^1.1.5`, pacote Vue 3 via GitHub Packages
 - **Backend:** Node.js · JavaScript · Express · WebSocket (`ws`)
 - **Persistência:** Arquivos de log do filesystem (read-only) · `targets.json`
 - **Infraestrutura:** Podman/Docker Compose (`compose.yaml`) · Containerfile por serviço
