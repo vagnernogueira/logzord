@@ -142,17 +142,6 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
     },
   })
 
-  const ShellPanel = defineComponent({
-    name: 'ShellPanel',
-    props: {
-      open: { type: Boolean, required: true },
-    },
-    setup(props, { slots }) {
-      return () =>
-        h('div', { class: 'panel', ...(props.open ? {} : { hidden: true }) }, slots.default?.())
-    },
-  })
-
   const ShellStatusBar = defineComponent({
     name: 'ShellStatusBar',
     props: {
@@ -198,7 +187,6 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
     ShellActivityBar,
     ShellSidebar,
     ShellTabs,
-    ShellPanel,
     ShellStatusBar,
     ShellCommandPalette,
     useShellKeybindings: useShellKeybindingsMock,
@@ -306,17 +294,5 @@ describe('App', () => {
     expect(tabs).toHaveLength(1)
     expect(tabs[0]!.text()).toContain('Application log')
     expect(tabs[0]!.attributes('aria-selected')).toBe('true')
-  })
-
-  it('alterna o panel pelo item correspondente da status bar', async () => {
-    const wrapper = mountApp()
-
-    expect(wrapper.find('.panel').attributes('hidden')).toBeDefined()
-
-    await wrapper.find('[data-item-id="panel"]').trigger('click')
-    expect(wrapper.find('.panel').attributes('hidden')).toBeUndefined()
-
-    await wrapper.find('[data-item-id="panel"]').trigger('click')
-    expect(wrapper.find('.panel').attributes('hidden')).toBeDefined()
   })
 })

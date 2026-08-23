@@ -8,7 +8,6 @@ import {
   ShellActivityBar,
   ShellSidebar,
   ShellTabs,
-  ShellPanel,
   ShellStatusBar,
   ShellCommandPalette,
   useShellKeybindings,
@@ -99,8 +98,6 @@ function closeTab(id: string) {
   }
 }
 
-const panelOpen = ref(false)
-
 function toggleSidebar() {
   if (activeSection.value === null) {
     activeSection.value = lastActiveViewId.value ?? views[0]?.id ?? null
@@ -111,9 +108,8 @@ function toggleSidebar() {
   activeSection.value = null
 }
 
-function togglePanel() {
-  panelOpen.value = !panelOpen.value
-}
+// Painel inferior removido da UI; stub mantido pois onTogglePanel é obrigatório em useShellKeybindings (vsshellcode).
+function togglePanel() {}
 
 const paletteOpen = ref(false)
 
@@ -123,7 +119,6 @@ function openCommandPalette() {
 
 const commandHandlers: Record<string, () => void> = {
   'toggle-sidebar': toggleSidebar,
-  'toggle-panel': togglePanel,
   'toggle-play': togglePlay,
   'toggle-record': toggleRecord,
   'export-record': () => void exportRecord(),
@@ -147,11 +142,6 @@ const statusBarLeftItems = computed<ShellStatusBarItem[]>(() => [
     icon: wsState.value === 1 ? 'circle-filled' : 'circle-outline',
     label: wsState.value === 1 ? 'Conectado' : 'Desconectado',
   },
-  {
-    id: 'panel',
-    icon: panelOpen.value ? 'panel-close' : 'panel-right',
-    label: 'Panel',
-  },
 ])
 
 const statusBarRightItems = computed<ShellStatusBarItem[]>(() => [
@@ -160,12 +150,6 @@ const statusBarRightItems = computed<ShellStatusBarItem[]>(() => [
     label: `OFFSET: ${currentWsOffset.value} bytes`,
   },
 ])
-
-function handleStatusBarItemClick(id: string) {
-  if (id === 'panel') {
-    togglePanel()
-  }
-}
 
 const titleBarMenuItems: ShellTitleBarMenuItem[] = []
 </script>
@@ -220,14 +204,11 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
           :syntax-highlight="syntaxHighlight"
         />
       </div>
-
-      <ShellPanel :open="panelOpen" />
     </div>
 
     <ShellStatusBar
       :left-items="statusBarLeftItems"
       :right-items="statusBarRightItems"
-      @item-click="handleStatusBarItemClick"
     />
 
     <ShellCommandPalette
