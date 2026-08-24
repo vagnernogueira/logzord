@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultTargetsPath = path.resolve(__dirname, '../targets.json');
+const ROTATION_ID_PATTERN = /^(.+)::(\d{4}-\d{2}-\d{2})$/;
 
 function byteLengthOf(chunk) {
   return Buffer.byteLength(chunk, 'utf8');
@@ -20,6 +21,58 @@ function sendMessage(ws, message) {
   }
 }
 
+function loadTargetTree(targetsPath) {
+  if (!fs.existsSync(targetsPath)) {
+    return [];
+  }
+  return JSON.parse(fs.readFileSync(targetsPath, 'utf8'));
+}
+
+// A arvore mistura nos 'group' (so navegacao) e 'target' (folha streamavel);
+// busca recursiva ignora 'group' e desce em 'children' de ambos os tipos.
+function findTargetById(nodes, id) {
+  for (const node of nodes) {
+    if (node.type === 'target' && node.id === id) {
+      return node;
+    }
+    if (node.children) {
+      const found = findTargetById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function resolveTargetPath(target) {
+  return path.resolve(__dirname, '..', target.path);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Resolve um targetId que pode ser um target estatico ou uma rotacao dinamica
+// (`${targetId}::AAAA-MM-DD`, nunca aceita path vindo do cliente).
+function resolveLogPath(tree, targetId) {
+  const target = findTargetById(tree, targetId);
+  if (target) {
+    return resolveTargetPath(target);
+  }
+
+  const rotationMatch = ROTATION_ID_PATTERN.exec(targetId);
+  if (!rotationMatch) {
+    return null;
+  }
+
+  const [, baseId, date] = rotationMatch;
+  const baseTarget = findTargetById(tree, baseId);
+  if (!baseTarget) {
+    return null;
+  }
+
+  return `${resolveTargetPath(baseTarget)}.${date}`;
+}
+
 export function createApp({ targetsPath = defaultTargetsPath } = {}) {
   const app = express();
   app.use(cors());
@@ -27,14 +80,45 @@ export function createApp({ targetsPath = defaultTargetsPath } = {}) {
 
   app.get('/api/targets', (req, res) => {
     try {
-      if (fs.existsSync(targetsPath)) {
-        const data = fs.readFileSync(targetsPath, 'utf8');
-        res.json(JSON.parse(data));
-      } else {
-        res.json([]);
-      }
+      res.json(loadTargetTree(targetsPath));
     } catch (error) {
       res.status(500).json({ error: 'Failed to read targets' });
+    }
+  });
+
+  app.get('/api/targets/:id/rotations', (req, res) => {
+    try {
+      const tree = loadTargetTree(targetsPath);
+      const target = findTargetById(tree, req.params.id);
+
+      if (!target) {
+        res.status(404).json({ error: 'Target not found' });
+        return;
+      }
+
+      const logPath = resolveTargetPath(target);
+      const dir = path.dirname(logPath);
+      const basename = path.basename(logPath);
+
+      if (!fs.existsSync(dir)) {
+        res.json([]);
+        return;
+      }
+
+      const pattern = new RegExp(`^${escapeRegExp(basename)}\\.(\\d{4}-\\d{2}-\\d{2})$`);
+      const rotations = fs.readdirSync(dir)
+        .map((entry) => pattern.exec(entry))
+        .filter((match) => match !== null)
+        .map((match) => ({
+          id: `${target.id}::${match[1]}`,
+          date: match[1],
+          label: match[1],
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      res.json(rotations);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to read rotations' });
     }
   });
 
@@ -144,18 +228,16 @@ function attachWebSocketServer(server, targetsPath) {
         if (data.type === 'START_STREAM') {
           const targetId = data.targetId;
           const startOffset = data.offset || 0;
-          const targets = JSON.parse(fs.readFileSync(targetsPath, 'utf8'));
-          const target = targets.find((item) => item.id === targetId);
+          const tree = loadTargetTree(targetsPath);
+          const logPath = resolveLogPath(tree, targetId);
 
-          if (!target) {
+          if (!logPath) {
             sendMessage(ws, { type: 'ERROR', message: 'Target not found' });
             return;
           }
 
-          const logPath = path.resolve(__dirname, '..', target.path);
-
           if (!fs.existsSync(logPath)) {
-            sendMessage(ws, { type: 'ERROR', message: `Log file not found: ${target.path}` });
+            sendMessage(ws, { type: 'ERROR', message: `Log file not found: ${targetId}` });
             return;
           }
 

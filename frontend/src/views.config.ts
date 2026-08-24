@@ -1,12 +1,14 @@
 import type { Component } from 'vue'
 import type { ShellActivityBarItem } from '@vagnernogueira/vsshellcode/vue'
-import type { Target } from '@/types'
+import type { LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
 import AnalysisSection from '@/components/AnalysisSection.vue'
 import TargetsSection from '@/components/TargetsSection.vue'
 
 export interface ViewPropsContext {
-  targets: Target[]
-  selectedTarget: Target | null
+  tree: LogTreeNode[]
+  selectedTarget: LogTreeTarget | null
+  availableRotations: LogRotation[]
+  rotationsLoading: boolean
   recordedCount: number
   isRecording: boolean
 }
@@ -22,7 +24,12 @@ export const views: ShellViewConfig[] = [
     icon: 'files',
     title: 'Logs',
     component: TargetsSection,
-    props: ({ targets, selectedTarget }) => ({ targets, selectedTarget }),
+    props: ({ tree, selectedTarget, availableRotations, rotationsLoading }) => ({
+      tree,
+      selectedTarget,
+      availableRotations,
+      rotationsLoading,
+    }),
   },
   {
     id: 'analysis',

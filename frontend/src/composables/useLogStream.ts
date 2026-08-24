@@ -1,17 +1,41 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import type { Target, LogEntry } from '@/types'
+import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
+import { findTargetById, firstTarget } from '@/lib/logTree'
+
+const ROTATIONS_STORAGE_KEY = 'logzord:rotations'
+
+type PersistedRotations = Record<string, LogRotation[]>
+
+function loadPersistedRotations(): PersistedRotations {
+  try {
+    const raw = localStorage.getItem(ROTATIONS_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function savePersistedRotations(map: PersistedRotations) {
+  try {
+    localStorage.setItem(ROTATIONS_STORAGE_KEY, JSON.stringify(map))
+  } catch {
+    // localStorage indisponível (modo privado, quota) — degrada sem persistir
+  }
+}
 
 export function useLogStream() {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws'
 
-  const targets = ref<Target[]>([])
-  const selectedTarget = ref<Target | null>(null)
+  const tree = ref<LogTreeNode[]>([])
+  const selectedTarget = ref<LogTreeTarget | null>(null)
   const isPlaying = ref(false)
   const logs = ref<LogEntry[]>([])
   const filterText = ref('')
   const currentWsOffset = ref(0)
   const wsState = ref<WebSocket['readyState']>(WebSocket.CLOSED)
+  const availableRotations = ref<LogRotation[]>([])
+  const rotationsLoading = ref(false)
 
   let ws: WebSocket | null = null
   let onLogEntry: ((line: string, offset: number) => void) | null = null
@@ -31,26 +55,80 @@ export function useLogStream() {
       .replace(/(ORA-\d+)/g, '<span class="text-red-600 font-bold bg-red-100 px-1 rounded">$1</span>')
   }
 
+  function applyPersistedRotations(nodes: LogTreeNode[]) {
+    const persisted = loadPersistedRotations()
+    for (const node of nodes) {
+      if (node.type === 'target') {
+        const rotations = persisted[node.id]
+        if (rotations?.length && !node.children?.length) {
+          node.children = rotations.map((rotation) => ({
+            type: 'target',
+            id: rotation.id,
+            label: rotation.label,
+            rotationOf: node.id,
+          }))
+        }
+      }
+      if (node.children) {
+        applyPersistedRotations(node.children)
+      }
+    }
+  }
+
   async function fetchTargets() {
     try {
       const res = await fetch(`${API_URL}/targets`)
-      targets.value = await res.json()
-      if (targets.value.length > 0) {
-        selectTarget(targets.value[0])
+      const data: LogTreeNode[] = await res.json()
+      applyPersistedRotations(data)
+      tree.value = data
+      const first = firstTarget(tree.value)
+      if (first) {
+        selectTarget(first)
       }
     } catch (error) {
       console.error('Failed to fetch targets:', error)
     }
   }
 
-  function selectTarget(target: Target) {
+  function selectTarget(target: LogTreeTarget) {
     selectedTarget.value = target
     logs.value = []
     currentWsOffset.value = 0
+    availableRotations.value = []
     if (isPlaying.value) {
       stopStream()
       startStream()
     }
+  }
+
+  async function fetchRotationsFor(target: LogTreeTarget) {
+    rotationsLoading.value = true
+    try {
+      const res = await fetch(`${API_URL}/targets/${target.id}/rotations`)
+      const rotations: LogRotation[] = await res.json()
+      const addedIds = new Set((target.children ?? []).map((child) => child.id))
+      availableRotations.value = rotations.filter((rotation) => !addedIds.has(rotation.id))
+    } catch (error) {
+      console.error('Failed to fetch rotations:', error)
+      availableRotations.value = []
+    } finally {
+      rotationsLoading.value = false
+    }
+  }
+
+  function addRotation(target: LogTreeTarget, rotation: LogRotation) {
+    const node = findTargetById(tree.value, target.id)
+    if (!node) return
+
+    node.children = [
+      ...(node.children ?? []),
+      { type: 'target', id: rotation.id, label: rotation.label, rotationOf: node.id },
+    ]
+    availableRotations.value = availableRotations.value.filter((item) => item.id !== rotation.id)
+
+    const persisted = loadPersistedRotations()
+    persisted[node.id] = [...(persisted[node.id] ?? []), rotation]
+    savePersistedRotations(persisted)
   }
 
   function clearReconnectTimer() {
@@ -184,7 +262,7 @@ export function useLogStream() {
   })
 
   return {
-    targets,
+    tree,
     selectedTarget,
     isPlaying,
     logs,
@@ -193,10 +271,14 @@ export function useLogStream() {
     currentWsOffset,
     WS_URL,
     wsState,
+    availableRotations,
+    rotationsLoading,
     selectTarget,
     togglePlay,
     syntaxHighlight,
     setOnLogEntry,
     getWsState,
+    fetchRotationsFor,
+    addRotation,
   }
 }

@@ -5,6 +5,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 log_file="$script_dir/sample.log"
 reset_file=false
+rotate=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -12,12 +13,18 @@ while [[ $# -gt 0 ]]; do
       reset_file=true
       shift
       ;;
+    --rotate)
+      rotate=true
+      shift
+      ;;
     -h|--help)
       cat <<'EOF'
-Usage: generate-logs.sh [--reset]
+Usage: generate-logs.sh [--reset] [--rotate]
 
 Generate random log lines into wkr/sample.log.
-  --reset   Truncate the file before starting generation.
+  --reset    Truncate the file before starting generation.
+  --rotate   One-shot: copy the current sample.log to sample.log.AAAA-MM-DD
+             (simulates log rotation, for testing the rotations endpoint) and exit.
 EOF
       exit 0
       ;;
@@ -30,6 +37,11 @@ done
 
 mkdir -p "$script_dir"
 touch "$log_file"
+
+if [[ "$rotate" == true ]]; then
+  cp "$log_file" "${log_file}.$(date '+%Y-%m-%d')"
+  exit 0
+fi
 
 if [[ "$reset_file" == true ]]; then
   : > "$log_file"

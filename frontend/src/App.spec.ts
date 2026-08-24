@@ -1,7 +1,7 @@
 import { ref, type PropType } from 'vue'
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { LogEntry, Target } from '@/types'
+import type { LogEntry, LogTreeNode, LogTreeTarget } from '@/types'
 
 const {
   useLogStreamMock,
@@ -100,6 +100,34 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
     },
   })
 
+  type TreeNode = { id: string; label: string; icon?: string; open?: boolean; children?: TreeNode[] }
+
+  const ShellTree = defineComponent({
+    name: 'ShellTree',
+    props: {
+      nodes: { type: Array as PropType<TreeNode[]>, required: true },
+    },
+    emits: ['select'],
+    setup(props, { emit }) {
+      function renderNode(node: TreeNode) {
+        return h('li', { key: node.id }, [
+          h(
+            'button',
+            {
+              type: 'button',
+              'data-node-id': node.id,
+              onClick: () => emit('select', node),
+            },
+            node.label,
+          ),
+          node.children?.length ? h('ul', node.children.map((child) => renderNode(child))) : null,
+        ])
+      }
+
+      return () => h('ul', { class: 'tree' }, props.nodes.map((node) => renderNode(node)))
+    },
+  })
+
   const ShellTabs = defineComponent({
     name: 'ShellTabs',
     props: {
@@ -186,6 +214,7 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
     ShellTitleBar,
     ShellActivityBar,
     ShellSidebar,
+    ShellTree,
     ShellTabs,
     ShellStatusBar,
     ShellCommandPalette,
@@ -195,28 +224,30 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
 
 import App from './App.vue'
 
-const targets: Target[] = [
-  { id: 'app', name: 'Application log', path: '/var/log/app.log' },
-  { id: 'worker', name: 'Worker log', path: '/var/log/worker.log' },
+const tree: LogTreeNode[] = [
+  { type: 'target', id: 'app', label: 'Application log', path: '/var/log/app.log' },
+  { type: 'target', id: 'worker', label: 'Worker log', path: '/var/log/worker.log' },
 ]
 
 function createLogStreamState() {
-  const selectedTarget = ref<Target | null>(null)
+  const selectedTarget = ref<LogTreeTarget | null>(null)
   const isPlaying = ref(false)
   const filterText = ref('')
   const filteredLogs = ref<LogEntry[]>([])
   const currentWsOffset = ref(42)
-  const selectTarget = vi.fn((target: Target) => {
+  const selectTarget = vi.fn((target: LogTreeTarget) => {
     selectedTarget.value = target
   })
 
   return {
-    targets: ref(targets),
+    tree: ref(tree),
     selectedTarget,
     isPlaying,
     filterText,
     filteredLogs,
     currentWsOffset,
+    availableRotations: ref([]),
+    rotationsLoading: ref(false),
     selectTarget,
     togglePlay: vi.fn(() => {
       isPlaying.value = !isPlaying.value
@@ -224,6 +255,8 @@ function createLogStreamState() {
     syntaxHighlight: (content: string) => content,
     setOnLogEntry: vi.fn(),
     getWsState: () => 1,
+    fetchRotationsFor: vi.fn(),
+    addRotation: vi.fn(),
   }
 }
 

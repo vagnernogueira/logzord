@@ -1,17 +1,60 @@
 [
   {
-    "id": "service-x",
-    "name": "Serviço de teste X",
-    "path": "wkr/sample.log"
+    "type": "group",
+    "id": "ns:demo",
+    "label": "demo",
+    "icon": "symbol-namespace",
+    "children": [
+      {
+        "type": "group",
+        "id": "app:demo/worker",
+        "label": "worker",
+        "icon": "package",
+        "children": [
+          {
+            "type": "group",
+            "id": "pod:demo/worker-x",
+            "label": "worker-x",
+            "icon": "vm",
+            "children": [
+              {
+                "type": "target",
+                "id": "service-x",
+                "label": "Serviço de teste X",
+                "path": "wkr/sample.log"
+              }
+            ]
+          },
+          {
+            "type": "group",
+            "id": "pod:demo/worker-y",
+            "label": "worker-y",
+            "icon": "vm",
+            "children": [
+              {
+                "type": "target",
+                "id": "service-y",
+                "label": "Serviço de teste Y",
+                "path": "wkr/sample.log"
+              }
+            ]
+          }
+        ]
+      }
+    ]
   },
   {
-    "id": "service-y",
-    "name": "Serviço de teste Y",
-    "path": "wkr/sample.log"
-  },
-  {
-    "id": "service-z",
-    "name": "Serviço de teste Z",
-    "path": "wkr/sample.log"
+    "type": "group",
+    "id": "standalone",
+    "label": "Standalone",
+    "icon": "server",
+    "children": [
+      {
+        "type": "target",
+        "id": "service-z",
+        "label": "Serviço de teste Z",
+        "path": "wkr/sample.log"
+      }
+    ]
   }
 ]

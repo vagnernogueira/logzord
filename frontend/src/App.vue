@@ -2,7 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
-import type { Target } from '@/types'
+import type { LogRotation, LogTreeTarget } from '@/types'
+import { findTargetById } from '@/lib/logTree'
 import {
   ShellTitleBar,
   ShellActivityBar,
@@ -20,17 +21,21 @@ import LogToolbar from '@/components/LogToolbar.vue'
 import LogViewer from '@/components/LogViewer.vue'
 
 const {
-  targets,
+  tree,
   selectedTarget,
   isPlaying,
   filterText,
   filteredLogs,
   currentWsOffset,
+  availableRotations,
+  rotationsLoading,
   selectTarget,
   togglePlay,
   syntaxHighlight,
   setOnLogEntry,
   getWsState,
+  fetchRotationsFor,
+  addRotation,
 } = useLogStream()
 
 const {
@@ -59,8 +64,10 @@ watch(activeSection, (id) => {
 })
 
 const viewPropsContext = computed(() => ({
-  targets: targets.value,
+  tree: tree.value,
   selectedTarget: selectedTarget.value,
+  availableRotations: availableRotations.value,
+  rotationsLoading: rotationsLoading.value,
   recordedCount: recordedCount.value,
   isRecording: isRecording.value,
 }))
@@ -75,14 +82,22 @@ watch(selectedTarget, (target) => {
 
 const tabs = computed(() =>
   openTargetIds.value
-    .map((id) => targets.value.find((target) => target.id === id))
-    .filter((target): target is Target => !!target)
-    .map((target) => ({ id: target.id, label: target.name, icon: 'file' })),
+    .map((id) => findTargetById(tree.value, id))
+    .filter((target): target is LogTreeTarget => !!target)
+    .map((target) => ({ id: target.id, label: target.label, icon: 'file' })),
 )
 
 function activateTab(id: string) {
-  const target = targets.value.find((item) => item.id === id)
+  const target = findTargetById(tree.value, id)
   if (target) selectTarget(target)
+}
+
+function requestRotations(target: LogTreeTarget) {
+  void fetchRotationsFor(target)
+}
+
+function addTargetRotation(target: LogTreeTarget, rotation: LogRotation) {
+  addRotation(target, rotation)
 }
 
 function closeTab(id: string) {
@@ -93,7 +108,7 @@ function closeTab(id: string) {
 
   if (closingActive) {
     const fallbackId = openTargetIds.value[openTargetIds.value.length - 1]
-    const fallback = targets.value.find((target) => target.id === fallbackId)
+    const fallback = fallbackId ? findTargetById(tree.value, fallbackId) : null
     if (fallback) selectTarget(fallback)
   }
 }
@@ -179,6 +194,8 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
           :is="activeView.component"
           v-bind="activeViewProps"
           @select-target="selectTarget"
+          @request-rotations="requestRotations"
+          @add-rotation="addTargetRotation"
           @export-record="exportRecord"
           @clear-record="clearRecord"
         />

@@ -136,7 +136,7 @@ async function createTestServer(logContent = 'first line\nsecond line\n') {
   const logPath = path.join(testDir, 'sample.log');
   fs.writeFileSync(logPath, logContent);
   fs.writeFileSync(targetsPath, JSON.stringify([
-    { id: 'sample', name: 'Sample', path: logPath },
+    { type: 'target', id: 'sample', label: 'Sample', path: logPath },
   ]));
 
   const testServer = createServer({ targetsPath });
@@ -183,6 +183,38 @@ describe('WebSocket log streaming', () => {
     expect(chunk.content).toBe('first line\nsecond line\n');
     expect(chunk.offset).toBe(Buffer.byteLength(chunk.content, 'utf8'));
     expect(streamEnd).toEqual({ type: 'STREAM_END' });
+  });
+
+  it('streams a rotated file via a composite rotation id', async () => {
+    testServer = await createTestServer();
+    fs.writeFileSync(`${testServer.logPath}.2026-08-21`, 'rotated line\n');
+    ws = await openWebSocket(testServer.url);
+
+    const streamMessages = waitForStreamEnd(ws);
+    ws.send(JSON.stringify({
+      type: 'START_STREAM',
+      targetId: 'sample::2026-08-21',
+      offset: 0,
+    }));
+
+    const messages = await streamMessages;
+    const chunk = messages.find((message) => message.type === 'LOG_CHUNK');
+    expect(chunk.content).toBe('rotated line\n');
+  });
+
+  it('reports an error for an unknown target id', async () => {
+    testServer = await createTestServer();
+    ws = await openWebSocket(testServer.url);
+
+    const errorMessage = waitForMessage(ws, (message) => message.type === 'ERROR');
+    ws.send(JSON.stringify({
+      type: 'START_STREAM',
+      targetId: 'does-not-exist',
+      offset: 0,
+    }));
+
+    const message = await errorMessage;
+    expect(message).toEqual({ type: 'ERROR', message: 'Target not found' });
   });
 
   it('stops polling after PAUSE_STREAM', async () => {
