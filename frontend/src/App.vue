@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Play, Pause, FastForward, Rewind } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
 import type { LogRotation, LogTreeTarget } from '@/types'
@@ -17,7 +21,6 @@ import {
 } from '@vagnernogueira/vsshellcode/vue'
 import { commands } from '@/commands.config'
 import { views } from '@/views.config'
-import LogToolbar from '@/components/LogToolbar.vue'
 import LogViewer from '@/components/LogViewer.vue'
 
 const {
@@ -178,6 +181,96 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
           aria-label="Logzord"
         >🤖</span>
       </template>
+
+      <template #search>
+        <div class="relative w-72">
+          <Input
+            :model-value="filterText"
+            type="text"
+            placeholder="Filtrar logs..."
+            class="!h-7 w-full rounded-full bg-background px-4 py-1.5 pr-10 text-sm text-foreground shadow-inner focus:border-ring focus:ring-ring/50"
+            @update:model-value="filterText = String($event)"
+          />
+          <div class="absolute right-3 top-1/2 -translate-y-1/2 transform text-xs font-mono text-muted-foreground opacity-50">
+            /regex/
+          </div>
+        </div>
+      </template>
+
+      <template #actions>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="!h-7 !w-7 rounded-full shadow-md transition-all duration-300 active:scale-95"
+                :class="isPlaying ? 'bg-primary/20 text-primary hover:bg-primary/30' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
+                :aria-label="isPlaying ? 'Pausar streaming' : 'Iniciar streaming'"
+                @click="togglePlay"
+              >
+                <Pause
+                  v-if="isPlaying"
+                  :size="14"
+                  class="fill-current"
+                />
+                <Play
+                  v-else
+                  :size="14"
+                  class="fill-current ml-0.5"
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{{ isPlaying ? 'Pausar' : 'Iniciar' }} streaming</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <div class="flex h-7 items-center rounded-full border border-border bg-secondary p-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              class="!h-6 !w-6 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label="Retroceder"
+            >
+              <Rewind :size="13" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              class="!h-6 !w-6 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label="Avançar"
+            >
+              <FastForward :size="13" />
+            </Button>
+          </div>
+
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="!h-7 !w-7 rounded-full border shadow-sm transition-all duration-300"
+                :class="isRecording ? 'bg-destructive/20 text-destructive border-destructive/50 pulse-ring' : 'bg-secondary text-secondary-foreground border-border hover:bg-secondary/80'"
+                :aria-label="isRecording ? 'Parar gravação' : 'Iniciar gravação'"
+                @click="toggleRecord"
+              >
+                <div
+                  class="h-2 w-2 rounded-full transition-all duration-300"
+                  :class="isRecording ? 'animate-pulse bg-destructive' : 'bg-muted-foreground'"
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{{ isRecording ? 'Parar' : 'Iniciar' }} gravacao no Quadro de Analise</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </template>
     </ShellTitleBar>
 
     <ShellActivityBar
@@ -211,15 +304,6 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
       />
 
       <div class="editor-area flex min-h-0 flex-1 flex-col !p-0 overflow-hidden">
-        <LogToolbar
-          :is-playing="isPlaying"
-          :is-recording="isRecording"
-          :filter-text="filterText"
-          @toggle-play="togglePlay"
-          @toggle-record="toggleRecord"
-          @update:filter-text="filterText = $event"
-        />
-
         <LogViewer
           :filtered-logs="filteredLogs"
           :is-playing="isPlaying"
