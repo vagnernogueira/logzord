@@ -186,6 +186,8 @@ export function useLogStream() {
           }
         }
         currentWsOffset.value = data.offset
+        // O scroll-smooth foi removido de propósito: cada LOG_CHUNK reiniciava a animação suave.
+        // Esperamos o nextTick porque o #log-container só recebe o novo conteúdo depois do patch do DOM do Vue.
         await nextTick()
         scrollToBottom()
       } else if (data.type === 'STREAM_END') {
