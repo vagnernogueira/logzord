@@ -295,7 +295,7 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
       </div>
     </ShellSidebar>
 
-    <div class="main">
+    <div class="main min-h-0">
       <ShellTabs
         :tabs="tabs"
         :active-tab-id="selectedTarget?.id ?? null"
