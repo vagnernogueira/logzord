@@ -11,7 +11,7 @@ defineProps<{
 <template>
   <div
     id="log-container"
-    class="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed scroll-smooth"
+    class="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed"
   >
     <div
       v-if="filteredLogs.length === 0"

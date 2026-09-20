@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
 import { findTargetById, firstTarget } from '@/lib/logTree'
 
@@ -186,6 +186,7 @@ export function useLogStream() {
           }
         }
         currentWsOffset.value = data.offset
+        await nextTick()
         scrollToBottom()
       } else if (data.type === 'STREAM_END') {
         isPlaying.value = false
