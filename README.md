@@ -95,12 +95,6 @@ Configure `GH_PACKAGES_TOKEN`, `FRONTEND_HTTP_URL` e `FRONTEND_WS_URL` em **Sett
 
 As URLs do frontend são incorporadas na imagem durante o build via build-args; no build da imagem, o token é fornecido como build secret e não como build-arg.
 
-## Ondas de Desenvolvimento
-
-| Onda | Nome | Status |
-| :--- | :--- | :--- |
-| 1 | MVP | Concluída |
-| 8 | Shell visual `vsshellcode` | Concluída |
 
 ## Documentação Adicional
 
