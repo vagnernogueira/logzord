@@ -113,7 +113,6 @@ describe('useLogStream', () => {
     const ws = wsInstances[0]!
 
     stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
-    stream!.togglePlay()
     expect(stream!.isPlaying.value).toBe(true)
 
     stream!.clearTarget()
@@ -122,5 +121,66 @@ describe('useLogStream', () => {
     expect(stream!.isPlaying.value).toBe(false)
     expect(stream!.selectedTarget.value).toBeNull()
     expect(stream!.currentWsOffset.value).toBe(0)
+  })
+
+  it('inicia o stream ao abrir um target', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+
+    expect(stream!.isPlaying.value).toBe(true)
+    expect(ws.send).toHaveBeenLastCalledWith(
+      JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 0 }),
+    )
+  })
+
+  it('play/pause afeta somente a aba em foco', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+    const app = { type: 'target' as const, id: 'app', label: 'App' }
+    const worker = { type: 'target' as const, id: 'worker', label: 'Worker' }
+
+    stream!.selectTarget(app)
+    stream!.togglePlay()
+    expect(stream!.isPlaying.value).toBe(false)
+
+    stream!.selectTarget(worker)
+    expect(stream!.isPlaying.value).toBe(true)
+    expect(ws.send).toHaveBeenLastCalledWith(
+      JSON.stringify({ type: 'START_STREAM', targetId: 'worker', offset: 0 }),
+    )
+
+    ws.send.mockClear()
+    stream!.selectTarget(app)
+    expect(stream!.isPlaying.value).toBe(false)
+    expect(ws.send).toHaveBeenCalledOnce()
+    expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'PAUSE_STREAM' }))
+  })
+
+  it('forgetTarget faz a aba reaberta iniciar tocando', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const app = { type: 'target' as const, id: 'app', label: 'App' }
+
+    stream!.selectTarget(app)
+    stream!.togglePlay()
+    stream!.forgetTarget('app')
+    stream!.selectTarget(app)
+
+    expect(stream!.isPlaying.value).toBe(true)
+  })
+
+  it('continua tocando após STREAM_END (fim da leitura atual)', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+    await ws.onmessage?.(new MessageEvent('message', { data: JSON.stringify({ type: 'STREAM_END' }) }))
+
+    expect(stream!.isPlaying.value).toBe(true)
   })
 })

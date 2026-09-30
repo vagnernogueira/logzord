@@ -1,17 +1,29 @@
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, type Ref } from 'vue'
 import Dexie from 'dexie'
 
-export function useRecording() {
+export function useRecording(activeTargetId: Ref<string | null>) {
   const db = new Dexie('LogzordAnalysisDB')
   db.version(1).stores({
     recordedLogs: '++id, content, offset',
   })
 
-  const isRecording = ref(false)
+  // Gravação por aba: o botão comanda só a aba em foco; o Quadro de Análise (IndexedDB) é único.
+  const recordingTargetIds = ref(new Set<string>())
+  const isRecording = computed(() => !!activeTargetId.value && recordingTargetIds.value.has(activeTargetId.value))
   const recordedCount = ref(0)
 
   function toggleRecord() {
-    isRecording.value = !isRecording.value
+    const id = activeTargetId.value
+    if (!id) return
+    if (recordingTargetIds.value.has(id)) {
+      recordingTargetIds.value.delete(id)
+    } else {
+      recordingTargetIds.value.add(id)
+    }
+  }
+
+  function forgetTarget(id: string) {
+    recordingTargetIds.value.delete(id)
   }
 
   async function recordLine(line: string, offset: number, filterText: string) {
@@ -71,6 +83,7 @@ export function useRecording() {
     isRecording,
     recordedCount,
     toggleRecord,
+    forgetTarget,
     recordLine,
     clearRecord,
     exportRecord,

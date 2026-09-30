@@ -26,7 +26,7 @@ defineProps<{
         Selecione um log na árvore.
       </p>
       <p v-else>
-        {{ isPlaying ? 'Aguardando logs...' : 'Streaming pausado. Clique no Play para iniciar.' }}
+        {{ isPlaying ? 'Aguardando logs...' : 'Streaming pausado.' }}
       </p>
     </div>
     <!-- eslint-disable-next-line vue/no-v-html -->

@@ -252,6 +252,7 @@ function createLogStreamState() {
     clearTarget: vi.fn(() => {
       selectedTarget.value = null
     }),
+    forgetTarget: vi.fn(),
     togglePlay: vi.fn(() => {
       isPlaying.value = !isPlaying.value
     }),
@@ -268,6 +269,7 @@ function createRecordingState() {
     isRecording: ref(false),
     recordedCount: ref(0),
     toggleRecord: vi.fn(),
+    forgetTarget: vi.fn(),
     recordLine: vi.fn(),
     clearRecord: vi.fn(),
     exportRecord: vi.fn(),
@@ -351,5 +353,19 @@ describe('App', () => {
     expect(wrapper.findAll('.tabs .tab')).toHaveLength(0)
     expect(state.clearTarget).toHaveBeenCalledOnce()
     expect(state.selectedTarget.value).toBeNull()
+  })
+
+  it('descarta o estado de play e gravação da aba fechada', async () => {
+    const state = createLogStreamState()
+    const recording = createRecordingState()
+    useLogStreamMock.mockReturnValue(state)
+    useRecordingMock.mockReturnValue(recording)
+    const wrapper = mountApp()
+
+    await wrapper.findAll('aside button')[0]!.trigger('click')
+    await wrapper.find('.tab__close').trigger('click')
+
+    expect(state.forgetTarget).toHaveBeenCalledWith('app')
+    expect(recording.forgetTarget).toHaveBeenCalledWith('app')
   })
 })
