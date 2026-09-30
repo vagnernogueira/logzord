@@ -18,23 +18,6 @@
 - [9. Dependências Externas e Integrações](#9-dependências-externas-e-integrações)
 - [10. Histórico de Ondas e Changelog](#10-histórico-de-ondas-e-changelog)
 
-## Guia de Uso da Documentação
-
-### Para leitura humana (onboarding)
-
-1. Ler este hub por completo;
-2. Navegar para os módulos conforme o tema da tarefa.
-
-### Para uso com IA (recuperação eficiente)
-
-- Carregar este hub para obter visão geral e contratos centrais;
-- Carregar apenas o módulo relevante (`frontend.md`, `backend.md`, `operations.md`) para tarefas específicas.
-
-### Regra de atualização
-
-- Mudanças em contratos ou decisões centrais: atualizar este hub;
-- Mudanças locais (componente, rota, deploy): atualizar apenas o módulo afetado.
-
 ---
 
 ## 1. Visão Arquitetural
@@ -46,8 +29,8 @@ O Logzord adota um estilo de **Monólito Modular** em um monorepo TypeScript. A 
 | Camada | Tecnologia | Justificativa |
 | :--- | :--- | :--- |
 | **Frontend** | Vue.js 3 + Vite | Agilidade no build e reatividade performática. |
-| **UI Kit** | shadcn-vue + radix-vue + Tailwind | Componentes consistentes e primitives de interface para a camada Vue. |
-| **Shell de UI** | `@vagnernogueira/vsshellcode` `^1.0.1` | Componentes oficiais Vue 3 para a casca visual; pacote instalado pelo GitHub Packages. |
+| **Shell de UI** | `@vagnernogueira/vsshellcode` `^1.1.8` | Casca visual estilo VS Code (title bar, activity bar, sidebar, tabs, status bar, command palette) e tema; pacote Vue 3 instalado pelo GitHub Packages. |
+| **UI Kit** | shadcn-vue + radix-vue + Tailwind | Primitives de controle (botão, input, tooltip, card) dentro da casca; tokens de cor derivados do tema do shell. |
 | **Backend** | Node.js + Express | Gerenciamento eficiente de I/O assíncrono e Streams. |
 | **Comunicação** | WebSockets (ws) | Streaming bidirecional em tempo real. |
 | **Persistência** | Dexie.js (IndexedDB) | Abstração robusta para o Quadro de Análise e configs. |
@@ -55,7 +38,7 @@ O Logzord adota um estilo de **Monólito Modular** em um monorepo TypeScript. A 
 
 ## 3. Arquitetura do Frontend
 
-O frontend foi decomposto em uma camada de orquestração em `App.vue`, dois composables de estado e um conjunto de componentes de apresentação. O objetivo da refatoração foi reduzir a responsabilidade do componente raiz e manter os contratos de UI explícitos por props e eventos.
+A interface é uma casca estilo VS Code fornecida por `@vagnernogueira/vsshellcode` (decisão de adoção: ver [§7.2](#72-decisões-arquiteturais-centrais)), que substituiu o layout próprio anterior (`AppSidebar`, `LogToolbar`, `StatusBar` ad-hoc). `App.vue` orquestra a casca e dois composables de estado; o conteúdo específico do Logzord vive em views de sidebar e no `LogViewer`. Contratos de UI são explícitos por props e eventos.
 
 ### 3.1 Organização de diretórios
 
@@ -65,55 +48,59 @@ frontend/src/
 ├── App.spec.ts
 ├── commands.config.ts
 ├── views.config.ts
+├── main.ts
+├── style.css
 ├── components/
 │   ├── AnalysisSection.vue
-│   ├── LogToolbar.vue
 │   ├── LogViewer.vue
 │   ├── TargetsSection.vue
 │   ├── TargetsSection.spec.ts
 │   └── ui/
 ├── composables/
 │   ├── useLogStream.ts
+│   ├── useLogStream.spec.ts
 │   └── useRecording.ts
 ├── db/
 │   └── index.ts
 ├── lib/
+│   ├── logTree.ts
 │   └── utils.ts
 └── types/
-  └── index.ts
+    └── index.ts
 ```
 
-`db/index.ts` inicializa o Dexie/IndexedDB consumido por `useRecording.ts`. `lib/utils.ts` concentra helpers compartilhados pelos componentes `ui/` (padrão `shadcn-vue`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
+`db/index.ts` inicializa o Dexie/IndexedDB consumido por `useRecording.ts`. `lib/utils.ts` concentra helpers dos componentes `ui/` (padrão `shadcn-vue`); `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
 
 ### 3.2 Fluxo de dados
 
 - `App.vue` instancia `useLogStream()` e `useRecording()` e conecta os dois por meio de `setOnLogEntry(...)`.
-- `useLogStream` busca os `targets`, mantém `selectedTarget`, `isPlaying`, `filterText`, `filteredLogs` e `currentWsOffset`, e controla a comunicação com a API HTTP e o WebSocket.
+- `useLogStream` busca a árvore de targets `tree` (`GET /api/targets`) e as rotações sob demanda (`GET /api/targets/:id/rotations`), mantém `selectedTarget`, `isPlaying`, `filterText`, `filteredLogs` e `currentWsOffset`, e controla o WebSocket.
 - `useRecording` encapsula a persistência local via Dexie/IndexedDB e expõe `isRecording`, `recordedCount`, `toggleRecord`, `recordLine`, `clearRecord` e `exportRecord`.
-- `App.vue` compõe a casca com `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellPanel`, `ShellStatusBar` e `ShellCommandPalette`, todos fornecidos por `@vagnernogueira/vsshellcode/vue`.
-- `views.config.ts` declara as views `TargetsSection` e `AnalysisSection`; a view ativa é renderizada pela composição dinâmica da sidebar.
-- `App.vue` repassa estado e callbacks para as seções, `LogToolbar` e `LogViewer` por props e eventos.
-- `Target` e `LogEntry` ficam centralizados em `frontend/src/types/index.ts` para compartilhar o contrato entre composables e componentes.
+- `App.vue` compõe a casca com `ShellTitleBar`, `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellStatusBar` e `ShellCommandPalette`, todos de `@vagnernogueira/vsshellcode/vue`, e registra atalhos com `useShellKeybindings`. `ShellPanel` não é usado: o painel inferior foi removido da UI (`togglePanel` em `App.vue` é um stub exigido por `useShellKeybindings`).
+- `views.config.ts` declara as views `TargetsSection` (id `targets`, título "Logs") e `AnalysisSection` (id `analysis`); a `ShellActivityBar` seleciona a view ativa e `ShellSidebar` renderiza o componente correspondente com as props de `ViewPropsContext`.
+- Cada target selecionado abre uma aba em `ShellTabs` (`openTargetIds`); fechar a aba ativa seleciona a última restante, e a última aba não fecha.
+- `commands.config.ts` alimenta a `ShellCommandPalette`; `App.vue` mapeia cada id de comando para um handler (`commandHandlers`).
+- `LogEntry` e os tipos da árvore (`LogTreeNode`, `LogTreeTarget`, `LogRotation`) ficam em `frontend/src/types/index.ts`.
 
 ### 3.3 Componentes de interface
 
-- `TargetsSection.vue` lista os targets disponíveis.
-- `AnalysisSection.vue` mostra o `Quadro de Análise`, com ações de exportação e limpeza do buffer gravado.
-- `LogToolbar.vue` concentra o controle de play/pause, o toggle de gravação e o filtro textual.
-- `LogViewer.vue` renderiza o fluxo filtrado, aplica destaque simples por conteúdo e mostra estados vazios quando não há logs.
-- A casca, incluindo a status bar e o panel, é fornecida pelos componentes oficiais de `@vagnernogueira/vsshellcode/vue`.
+- **Title bar (`ShellTitleBar`, slots em `App.vue`):** campo de filtro textual, botão play/pause, botões rewind/fast-forward (sem handler ligado) e toggle de gravação.
+- **Status bar (`ShellStatusBar`):** estado da conexão WebSocket (esquerda) e `OFFSET` corrente em bytes (direita).
+- `TargetsSection.vue` (sidebar) exibe a árvore hierárquica de targets com rotações sob demanda.
+- `AnalysisSection.vue` (sidebar) mostra o `Quadro de Análise`, com ações de exportação e limpeza do buffer gravado.
+- `LogViewer.vue` (área do editor) renderiza o fluxo filtrado, aplica destaque simples por conteúdo e mostra estados vazios quando não há logs.
 
 ### 3.4 Dependências de UI
 
 - A pasta `frontend/src/components/ui/` segue o padrão do `shadcn-vue` e usa `radix-vue` como base para primitives de interface.
-- Os componentes locais incluem `Button`, `Card`, `Input`, `Badge`, `Separator`, `Tooltip` e `ScrollArea`.
-- `lucide-vue-next` fornece os ícones usados na toolbar.
+- Os componentes locais incluem `Button`, `Card`, `Input`, `Badge`, `Separator`, `Tooltip` e `ScrollArea`; `App.vue` (title bar) e `AnalysisSection.vue` consomem `Button`, `Input`, `Tooltip` e `Card`.
+- Ícones: `lucide-vue-next` nos controles da title bar; ícones da própria casca (activity bar, tabs, status bar, palette) usam nomes codicon fornecidos por `@vagnernogueira/vsshellcode`.
 
 ### 3.5 Shell oficial, registry e tema
 
-- `frontend/package.json` depende de `@vagnernogueira/vsshellcode` na faixa `^1.0.1`.
+- `frontend/package.json` depende de `@vagnernogueira/vsshellcode` na faixa `^1.1.8`.
 - O pacote é consumido pelo registry do GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para `https://npm.pkg.github.com` e usa `${GITHUB_TOKEN}` como token de instalação; nenhum token é versionado. O `make build` grava o token em um arquivo temporário com permissões restritas e o monta como segredo apenas durante o build do frontend; o token não é interpolado no Compose nem persistido em uma layer da imagem.
-- `frontend/src/main.ts` importa `@vagnernogueira/vsshellcode/css/theme.css` e `shell.css` antes de `frontend/src/style.css`.
+- `frontend/src/main.ts` importa `css/theme.css`, `css/shell.css`, `css/codicon.css` e `js/vscode-elements.js` de `@vagnernogueira/vsshellcode` antes de `frontend/src/style.css`.
 - O bridging de cor adotado na Fase 6 usa VS Code → Tailwind: as variáveis `--vscode-*` fornecidas pelo shell são a fonte única, e `frontend/src/style.css` mapeia os tokens semânticos do Tailwind/shadcn para elas. `tailwind.config.js` preserva utilitários de opacidade com `color-mix`.
 - `pilot/vsshellcode-integration` é um branch local-only do piloto, superseded pela adoção do pacote; o destino é descartá-lo após o merge, conforme decisão do humano. Esta sessão não remove o branch.
 
@@ -129,15 +116,14 @@ frontend/src/
 
 ```ascii
 [ App.vue ]
-   |-- useLogStream() -----> GET /api/targets + WebSocket START_STREAM/PAUSE_STREAM
+   |-- useLogStream() -----> GET /api/targets(/:id/rotations) + WebSocket START_STREAM/PAUSE_STREAM
    |                         (reconexão automática com backoff fixo de 5s em close/error)
    |-- useRecording() -----> Dexie / IndexedDB
    |
    +--> @vagnernogueira/vsshellcode/vue
-   |      ActivityBar / Sidebar / Tabs / Panel / StatusBar / CommandPalette
-   +--> views.config.ts ----> TargetsSection / AnalysisSection
-   +--> LogToolbar ---- play / record / filter
-   +--> LogViewer ---- filteredLogs / syntaxHighlight
+   |      TitleBar (filtro / play / record) / ActivityBar / Sidebar / Tabs / StatusBar / CommandPalette
+   +--> views.config.ts ----> TargetsSection / AnalysisSection (na Sidebar)
+   +--> LogViewer ---- filteredLogs / syntaxHighlight (área do editor)
        |
        v (porta 3001, único ponto de contato externo do container)
     [ Nginx ] -- estático (dist/) -- proxy /api, /ws --> [ Node/Express (127.0.0.1:3002) ]
@@ -175,7 +161,7 @@ _docs/
 ### 7.2 Decisões arquiteturais centrais
 
 - [ADR-001 — Estratégia de Retomada de Stream (Pausa/Play)](./decisoes/ADR-001-resume-offset.md)
-- **Shell oficial:** consumir `@vagnernogueira/vsshellcode` como dependência do frontend, em vez de copiar CSS ou manter componentes shell ad-hoc.
+- **Shell oficial:** o visual do Logzord é a casca `@vagnernogueira/vsshellcode` (estilo VS Code), adotada em substituição ao layout próprio anterior (`AppSidebar`, `LogToolbar`, `StatusBar`). Consumir o pacote como dependência do frontend, em vez de copiar CSS ou manter componentes shell ad-hoc; novos elementos de UI entram como view da sidebar (`views.config.ts`), slot da title bar, item da status bar ou comando da palette.
 - **Fonte de cor:** manter o tema VS Code do shell como fonte única e derivar os tokens Tailwind/shadcn por bridging VS Code → Tailwind.
 - **Branch piloto:** `pilot/vsshellcode-integration` permanece local-only e superseded pela adoção do pacote; após o merge, seu descarte depende da decisão do humano e não é executado por esta sessão.
 
@@ -197,9 +183,10 @@ _docs/
 | `backend/targets.json` | Lista de alvos de log disponíveis para streaming |
 | `frontend/package.json` | Dependências e scripts do frontend, incluindo `@vagnernogueira/vsshellcode` |
 | `.npmrc` | Registry scoped do GitHub Packages e referência ao `GITHUB_TOKEN` |
-| `frontend/src/main.ts` | Imports globais do tema/shell oficial antes do CSS da aplicação |
+| `frontend/src/main.ts` | Imports globais do tema, shell, codicon e web components do pacote antes do CSS da aplicação |
 | `frontend/src/style.css` | Bridging dos tokens `--vscode-*` para os tokens semânticos Tailwind/shadcn |
-| `frontend/src/views.config.ts` | Catálogo declarativo das views da sidebar |
+| `frontend/src/views.config.ts` | Catálogo declarativo das views da sidebar (itens da activity bar) |
+| `frontend/src/lib/logTree.ts` | Busca na árvore de targets e conversão para `ShellTreeNode` |
 | `frontend/src/commands.config.ts` | Comandos integrados à command palette |
 | `wkr/generate-logs.sh` | Gerador local de logs de teste com suporte a `--reset` |
 | `wkr/sample.log` | Arquivo de log de exemplo consumido pelo alvo `sample` |
@@ -214,7 +201,7 @@ _docs/
 | Dependência | Tipo | Contato/Link | Criticidade | Introduzida na Onda |
 | :--- | :--- | :--- | :--- | :--- |
 | Filesystem (NFS/local) | Infraestrutura | — | Alta | Onda 1 |
-| `@vagnernogueira/vsshellcode` `^1.0.1` | Shell Vue 3 | GitHub Packages (`npm.pkg.github.com`) | Alta no frontend | Onda 8 |
+| `@vagnernogueira/vsshellcode` `^1.1.8` | Shell Vue 3 | GitHub Packages (`npm.pkg.github.com`) | Alta no frontend | Onda 8 |
 | GitHub Packages | Registry npm | `.npmrc` + `GITHUB_TOKEN`/PAT `read:packages` | Alta para instalação | Onda 8 |
 
 ## 10. Histórico de Ondas e Changelog
@@ -224,6 +211,10 @@ _docs/
 - **Onda 1 - MVP**
   - **Principais Alterações Arquiteturais:** Estrutura inicial — frontend Vue 3, backend Node.js/Express, streaming de logs via WebSocket com controle por byte offset.
   - **ADRs Relacionados:** [ADR-001](./decisoes/ADR-001-resume-offset.md)
+
+- **Onda 8 - Shell visual `vsshellcode`**
+  - **Principais Alterações Arquiteturais:** Adoção de `@vagnernogueira/vsshellcode` como camada visual (title bar, activity bar, sidebar, tabs, status bar, command palette), em substituição ao layout próprio; tokens Tailwind/shadcn derivados das variáveis `--vscode-*`.
+  - **ADRs Relacionados:** —
 
 ### 10.2 Changelog do Documento
 
@@ -256,3 +247,8 @@ _docs/
   - **Data:** 2026-08-21
   - **Autor:** IA
   - **Mudanças:** Auditoria de aderência doc-código. Criação do `ADR-001` (referenciado desde a v1.1 mas nunca escrito), documentação da reconexão automática de WebSocket (`useLogStream.ts`, implementada na demanda de 2026-04-01 e até então não registrada), atualização do diagrama de arquitetura (§4) para refletir o Nginx como ponto de entrada introduzido na v1.5, e complemento da estrutura de diretórios (§3.1) com `db/`, `lib/` e arquivos de teste existentes. Correção de link quebrado no `README.md` (apontava para `_docs/ia-context/` inexistente).
+
+- **Versão 1.7**
+  - **Data:** 2026-09-30
+  - **Autor:** IA
+  - **Mudanças:** Revisão para refletir a adoção do `vsshellcode` como visual. Remoção de `LogToolbar`/`ShellPanel` (inexistentes no código), inclusão do `ShellTitleBar` (filtro, play, record), do `lib/logTree.ts`, das abas por target, da árvore hierárquica com rotações e do endpoint `/api/targets/:id/rotations`; versão do pacote atualizada para `^1.1.8`; Onda 8 registrada no histórico.

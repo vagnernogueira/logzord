@@ -1,145 +1,51 @@
 # Logzord — Contexto Operacional
 
-> Fonte única de instruções operacionais do projeto. `CLAUDE.md` é um symlink para este arquivo. Skills de documentação e geração de demandas são fornecidas pelo mecanismo nativo de skills (xskills) do agente.
+> Fonte única de instruções operacionais. `CLAUDE.md` e `AGENTS.md` (raiz) são symlinks para este arquivo.
 
-## Produto
+Visualizador de logs em tempo real: SPA Vue 3 + backend Node.js (Express, `ws`) que faz streaming de arquivos de log, com play/pause e retomada por byte offset. Stack, arquitetura e contratos: `_docs/ARCHITECTURE.md`; onboarding: `README.md`.
 
-Visualizador de logs em tempo real.
-SPA Vue 3 + Node.js backend com streaming de arquivos de log via WebSocket.
-Núcleo: listagem de alvos de log, streaming contínuo, play/pause com retomada por offset.
+## Regras
 
-## Stack
+- Preservar o comportamento atual; operar no escopo mínimo da demanda.
+- Ancorar cada afirmação em código ou documentação; declarar como suposição o que faltar.
+- Mudar o protocolo WebSocket ou o contrato de API só com justificativa explícita. Contrato atual: `GET /api/targets`, `GET /api/targets/:id/rotations`; WebSocket em `/ws` (`START_STREAM` {`targetId`, `offset`} → `LOG_CHUNK` {content, offset} · `STREAM_END` · `ERROR`; `PAUSE_STREAM`).
+- Preferir a solução simples à abstração prematura.
+- Tratar MCP como camada opcional: só declarar sucesso com evidência retornada (`context7`, `https://mcp.context7.com/mcp`, token por variável de ambiente).
 
-- **Frontend:** Vue 3 · TypeScript · Vite · Tailwind CSS
-- **Shell de UI:** `@vagnernogueira/vsshellcode` `^1.1.5`, pacote Vue 3 via GitHub Packages
-- **Backend:** Node.js · JavaScript · Express · WebSocket (`ws`)
-- **Persistência:** Arquivos de log do filesystem (read-only) · `targets.json`
-- **Infraestrutura:** Podman/Docker Compose (`compose.yaml`) · Containerfile por serviço
+**Conflito de fontes:** código-fonte > `_docs/ARCHITECTURE.md` > `README.md` > demais docs em `_docs/`. Em conflito, adotar a fonte de maior precedência e registrar a decisão no resultado.
 
-## APIs existentes
+## Frontend
 
-| Método | Rota | Auth |
-|--------|------|------|
-| GET | `/api/targets` | — |
+O visual é a casca `@vagnernogueira/vsshellcode` (estilo VS Code); a fonte de verdade da composição é `frontend/src/App.vue` (§3 de `_docs/ARCHITECTURE.md` explica o desenho).
 
-**WebSocket (porta 3001):**
+- Estender a UI pelos pontos da casca: view em `frontend/src/views.config.ts`, slot da title bar, item da status bar, comando em `frontend/src/commands.config.ts`. Componentes próprios ficam em `frontend/src/components/`.
+- As variáveis `--vscode-*` do shell são a fonte única de cor; os tokens Tailwind/shadcn derivam delas em `frontend/src/style.css`.
+- Ícones novos: `lucide-vue-next` nos controles próprios, nomes codicon nos itens da casca.
+- Instalar o pacote exige `GITHUB_TOKEN` com escopo `read:packages` (procedimento no `README.md`).
 
-| Mensagem (cliente→servidor) | Campos | Resposta (servidor→cliente) |
-|-----------------------------|--------|-----------------------------|
-| `START_STREAM` | `targetId`, `offset` | `LOG_CHUNK` (content, offset) · `STREAM_END` · `ERROR` |
-| `PAUSE_STREAM` | — | — |
+## Validação
 
-## Comandos
-
-```bash
-npm run build          # valida sintaxe após implementação
-npm run lint           # executa lint no pacote afetado
-npm run test           # executa testes existentes
-make stop              # para container local
-make build             # valida que a imagem builda sem erros (uso local pontual, não gera deploy)
-make run               # deploy local: pull + up da imagem publicada no GHCR (ghcr.io/vagnernogueira/logzord:latest)
-```
-
-**Deploy local = `make stop` + `make run`, nunca `make build` seguido de subir a imagem local manualmente.** `make build` não recebe os build-args `VITE_API_URL`/`VITE_WS_URL` (só o workflow `.github/workflows/docker-publish.yml` os injeta via secrets); uma imagem gerada por `make build` e colocada no ar assume os defaults de código (`http://localhost:3001/api`, `ws://localhost:3001/ws`), quebrando o frontend para qualquer acesso que não seja `localhost:3001` direto (ex.: domínio público atrás de proxy/Cloudflare). Evitar gerar e rodar imagem local em substituição ao container em produção — sempre restaurar via `make run` após confirmar que a tag foi publicada (`gh run list --workflow "Docker publish"`).
-
-## Regras obrigatórias
-
-- **MUST** preservar comportamento atual salvo instrução explícita em contrário
-- **MUST** operar no escopo mínimo — sem melhorias paralelas não solicitadas
-- **MUST NOT** inferir fatos sem evidência no código ou documentação
-- **MUST** declarar suposições quando faltar contexto
-- **MUST NOT** alterar protocolo WebSocket ou contrato de API sem justificativa explícita
-- **MUST NOT** adicionar funcionalidades fora da demanda
-- **SHOULD** preferir solução simples sobre abstração prematura
-- **MUST** tratar MCP como camada opcional com fallback — nunca declarar sucesso sem evidência retornada
-
-### Conflito de fontes (precedência decrescente)
-
-Código-fonte > `_docs/ARCHITECTURE.md` > `README.md` > docs auxiliares em `_docs/`
-
-Em conflito: explicitar, adotar a fonte de maior precedência e registrar a decisão técnica no resultado.
-
-### Anti-padrões
-
-Inventar endpoints/arquivos/comportamentos · omitir conflito documental · responder sem âncora em evidências · expandir escopo sem solicitação.
-
-## Convenções UI/Frontend
-
-- Ícones: `lucide-vue-next` — sem SVG inline em novos componentes
-- Componentes em `frontend/src/components/`
-- `frontend/src/App.vue` compõe `ShellTitleBar`, `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellPanel`, `ShellStatusBar` e `ShellCommandPalette` de `@vagnernogueira/vsshellcode/vue`; views declaradas em `frontend/src/views.config.ts`
-- `frontend/src/main.ts` importa o tema e o shell CSS do pacote antes de `frontend/src/style.css`
-- Bridging de cor VS Code → Tailwind: variáveis `--vscode-*` do shell são a fonte única; tokens semânticos Tailwind/shadcn derivam delas em `frontend/src/style.css` (`tailwind.config.js` com suporte a alpha via `color-mix`)
-- Instalação de `@vagnernogueira/vsshellcode` via `.npmrc` na raiz (`@vagnernogueira` → `https://npm.pkg.github.com`, credencial via `${GITHUB_TOKEN}`, nunca versionada); build local injeta o token como secret de arquivo (`make build`), CI injeta como build secret (`.github/workflows/docker-publish.yml`)
-
-## MCP disponíveis
-
-| Server | Transport | Capabilities | Status |
-|--------|-----------|-------------|--------|
-| `context7` | http/ws | docs.search · docs.read · docs.extract · docs.summarize · docs.cite | ativo |
-
-Endpoint context7: `https://mcp.context7.com/mcp` · auth: token por variável de ambiente.
-
-## Contratos de saída
-
-### Análise técnica
-
-- Resumo da demanda (1–3 linhas)
-- Evidências no projeto
-- Opções com trade-offs
-- Recomendação
-- Riscos e mitigação
-
-### Plano de implementação
-
-- Objetivo por etapa
-- Arquivos afetados
-- Mudanças previstas
-- Critérios de aceite
-- Riscos
-
-### Implementação
-
-- O que foi alterado
-- Arquivos modificados
-- Impacto funcional esperado
-- Validação recomendada ao solicitante
-
-### Revisão e refatoração
-
-- Problemas encontrados
-- Melhorias aplicadas ou propostas
-- Compatibilidade e regressão potencial
-- Próximos ajustes sugeridos
-
-### Checklist anti-alucinação
-
-- [ ] Usei a fonte de maior precedência disponível?
-- [ ] Detectei e tratei conflitos documentais?
-- [ ] Tudo que afirmei existe no código atual ou está marcado como proposta?
-- [ ] Minhas suposições estão explícitas?
-- [ ] Evitei extrapolar escopo?
-- [ ] Defini critérios de aceite verificáveis?
-
-## Fluxo operacional
-
+- Por pacote alterado, nesta ordem: `npm --workspace=<frontend|backend> run lint`, depois `run test`; ao fim, `npm --workspace=frontend run build` para mudanças de frontend.
+- Imagem: `make build` valida que builda, sem subi-la.
+- Verificar só por build, lint e testes; o navegador fica com o usuário.
 - Trabalhar em etapas quando a demanda for multi-fase.
-- Fazer build/compile simples ao final da implementação para verificar erros de sintaxe e corrigi-los quando aplicável ao escopo.
-- Em implementações que envolvam frontend ou backend, executar também `npm run lint` no pacote afetado e, em seguida, `npm run test` para validar os testes existentes.
-- Após implementação, quando aplicável, validar a imagem com `make build` (sem subi-la) para corrigir falhas de build; o deploy local em si é sempre `make stop` + `make run` (pull da imagem publicada no GHCR), nunca a imagem gerada por `make build`.
-- Não efetuar testes no navegador web.
 
-## Entrega padrão
+## Deploy local
 
-Após toda implementação entregar:
+Deploy local = `make stop` + `make run` (pull da imagem publicada em `ghcr.io/vagnernogueira/logzord:latest`).
 
-1. Resumo objetivo das mudanças
-2. Lista de arquivos alterados
-3. Impactos identificados
-4. Validações recomendadas
-5. Sugestão de commit message em inglês (conventional commits)
+`make build` não recebe os build-args `VITE_API_URL`/`VITE_WS_URL`, que só o workflow `.github/workflows/docker-publish.yml` injeta via secrets. Uma imagem local assume os defaults de código (`http://localhost:3001/api`, `ws://localhost:3001/ws`) e quebra o frontend em qualquer acesso que não seja `localhost:3001` direto (domínio público atrás de proxy/Cloudflare). Após um `make build`, restaurar via `make run` depois de confirmar a tag publicada (`gh run list --workflow "Docker publish"`).
 
-## Referências do projeto
+## Entrega
 
-- `_docs/ARCHITECTURE.md` — arquitetura do sistema
-- `README.md` — onboarding e comandos principais
+Ao concluir uma implementação, entregar: resumo objetivo das mudanças · arquivos alterados · impactos · validações recomendadas · sugestão de commit message em inglês (conventional commits).
+
+Formato por tipo de demanda:
+
+| Demanda | Seções |
+|---------|--------|
+| Análise técnica | Resumo (1–3 linhas) · Evidências no projeto · Opções com trade-offs · Recomendação · Riscos e mitigação |
+| Plano de implementação | Objetivo por etapa · Arquivos afetados · Mudanças previstas · Critérios de aceite · Riscos |
+| Revisão e refatoração | Problemas encontrados · Melhorias aplicadas ou propostas · Compatibilidade e regressão potencial · Próximos ajustes |
+
+Antes de entregar, confirmar cada item: fonte de maior precedência usada · conflitos documentais tratados · afirmações ancoradas no código atual ou marcadas como proposta · suposições explícitas · escopo respeitado · critérios de aceite verificáveis.
