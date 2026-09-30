@@ -33,6 +33,7 @@ const {
   availableRotations,
   rotationsLoading,
   selectTarget,
+  clearTarget,
   togglePlay,
   syntaxHighlight,
   setOnLogEntry,
@@ -104,8 +105,6 @@ function addTargetRotation(target: LogTreeTarget, rotation: LogRotation) {
 }
 
 function closeTab(id: string) {
-  if (openTargetIds.value.length <= 1) return
-
   const closingActive = selectedTarget.value?.id === id
   openTargetIds.value = openTargetIds.value.filter((tabId) => tabId !== id)
 
@@ -113,6 +112,7 @@ function closeTab(id: string) {
     const fallbackId = openTargetIds.value[openTargetIds.value.length - 1]
     const fallback = fallbackId ? findTargetById(tree.value, fallbackId) : null
     if (fallback) selectTarget(fallback)
+    else clearTarget()
   }
 }
 
@@ -307,6 +307,7 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
         <LogViewer
           :filtered-logs="filteredLogs"
           :is-playing="isPlaying"
+          :has-target="!!selectedTarget"
           :syntax-highlight="syntaxHighlight"
         />
       </div>

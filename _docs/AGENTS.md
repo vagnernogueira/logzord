@@ -27,12 +27,14 @@ O visual é a casca `@vagnernogueira/vsshellcode` (estilo VS Code); a fonte de v
 
 - Por pacote alterado, nesta ordem: `npm --workspace=<frontend|backend> run lint`, depois `run test`; ao fim, `npm --workspace=frontend run build` para mudanças de frontend.
 - Imagem: `make build` valida que builda, sem subi-la.
-- Verificar só por build, lint e testes; o navegador fica com o usuário.
+- Verificar por build, lint e testes. Para o teste final de UX, o ambiente dispõe de Playwright CLI (`npx playwright`) e Chrome headless (browsers em `~/.cache/ms-playwright`).
 - Trabalhar em etapas quando a demanda for multi-fase.
 
 ## Deploy local
 
 Deploy local = `make stop` + `make run` (pull da imagem publicada em `ghcr.io/vagnernogueira/logzord:latest`).
+
+A versão final em deploy é acessível em https://logzord.vagnernogueira.com/.
 
 `make build` não recebe os build-args `VITE_API_URL`/`VITE_WS_URL`, que só o workflow `.github/workflows/docker-publish.yml` injeta via secrets. Uma imagem local assume os defaults de código (`http://localhost:3001/api`, `ws://localhost:3001/ws`) e quebra o frontend em qualquer acesso que não seja `localhost:3001` direto (domínio público atrás de proxy/Cloudflare). Após um `make build`, restaurar via `make run` depois de confirmar a tag publicada (`gh run list --workflow "Docker publish"`).
 

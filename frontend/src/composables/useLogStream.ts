@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
-import { findTargetById, firstTarget } from '@/lib/logTree'
+import { findTargetById } from '@/lib/logTree'
 
 const ROTATIONS_STORAGE_KEY = 'logzord:rotations'
 
@@ -81,10 +81,6 @@ export function useLogStream() {
       const data: LogTreeNode[] = await res.json()
       applyPersistedRotations(data)
       tree.value = data
-      const first = firstTarget(tree.value)
-      if (first) {
-        selectTarget(first)
-      }
     } catch (error) {
       console.error('Failed to fetch targets:', error)
     }
@@ -99,6 +95,17 @@ export function useLogStream() {
       stopStream()
       startStream()
     }
+  }
+
+  function clearTarget() {
+    if (isPlaying.value) {
+      stopStream()
+      isPlaying.value = false
+    }
+    selectedTarget.value = null
+    logs.value = []
+    currentWsOffset.value = 0
+    availableRotations.value = []
   }
 
   async function fetchRotationsFor(target: LogTreeTarget) {
@@ -229,6 +236,7 @@ export function useLogStream() {
   }
 
   function togglePlay() {
+    if (!selectedTarget.value) return
     isPlaying.value = !isPlaying.value
     if (isPlaying.value) {
       startStream()
@@ -277,6 +285,7 @@ export function useLogStream() {
     availableRotations,
     rotationsLoading,
     selectTarget,
+    clearTarget,
     togglePlay,
     syntaxHighlight,
     setOnLogEntry,
