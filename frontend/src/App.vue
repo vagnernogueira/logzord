@@ -34,6 +34,7 @@ const {
   rotationsLoading,
   selectTarget,
   clearTarget,
+  forgetTarget: forgetPlayState,
   togglePlay,
   syntaxHighlight,
   setOnLogEntry,
@@ -46,10 +47,11 @@ const {
   isRecording,
   recordedCount,
   toggleRecord,
+  forgetTarget: forgetRecordState,
   recordLine,
   clearRecord,
   exportRecord,
-} = useRecording()
+} = useRecording(computed(() => selectedTarget.value?.id ?? null))
 
 setOnLogEntry((line: string, offset: number) => {
   recordLine(line, offset, filterText.value)
@@ -107,6 +109,8 @@ function addTargetRotation(target: LogTreeTarget, rotation: LogRotation) {
 function closeTab(id: string) {
   const closingActive = selectedTarget.value?.id === id
   openTargetIds.value = openTargetIds.value.filter((tabId) => tabId !== id)
+  forgetPlayState(id)
+  forgetRecordState(id)
 
   if (closingActive) {
     const fallbackId = openTargetIds.value[openTargetIds.value.length - 1]

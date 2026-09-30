@@ -41,6 +41,8 @@ export function useLogStream() {
   let onLogEntry: ((line: string, offset: number) => void) | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let shouldReconnect = true
+  // Estado de play por aba: os controles comandam só a aba em foco; aba sem estado prévio abre tocando.
+  const playStateByTarget = new Map<string, boolean>()
 
   const filteredLogs = computed(() => {
     if (!filterText.value) return logs.value
@@ -86,15 +88,29 @@ export function useLogStream() {
     }
   }
 
+  function setPlaying(value: boolean) {
+    isPlaying.value = value
+    if (selectedTarget.value) {
+      playStateByTarget.set(selectedTarget.value.id, value)
+    }
+  }
+
   function selectTarget(target: LogTreeTarget) {
+    if (isPlaying.value) {
+      stopStream()
+    }
     selectedTarget.value = target
     logs.value = []
     currentWsOffset.value = 0
     availableRotations.value = []
+    setPlaying(playStateByTarget.get(target.id) ?? true)
     if (isPlaying.value) {
-      stopStream()
       startStream()
     }
+  }
+
+  function forgetTarget(id: string) {
+    playStateByTarget.delete(id)
   }
 
   function clearTarget() {
@@ -198,10 +214,10 @@ export function useLogStream() {
         await nextTick()
         scrollToBottom()
       } else if (data.type === 'STREAM_END') {
-        isPlaying.value = false
+        // Fim da leitura atual, não do stream: o backend segue em polling do arquivo, então o play continua.
       } else if (data.type === 'ERROR') {
         console.error('Server error:', data.message)
-        isPlaying.value = false
+        setPlaying(false)
       }
     }
 
@@ -237,7 +253,7 @@ export function useLogStream() {
 
   function togglePlay() {
     if (!selectedTarget.value) return
-    isPlaying.value = !isPlaying.value
+    setPlaying(!isPlaying.value)
     if (isPlaying.value) {
       startStream()
     } else {
@@ -286,6 +302,7 @@ export function useLogStream() {
     rotationsLoading,
     selectTarget,
     clearTarget,
+    forgetTarget,
     togglePlay,
     syntaxHighlight,
     setOnLogEntry,
