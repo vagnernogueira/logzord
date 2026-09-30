@@ -249,6 +249,9 @@ function createLogStreamState() {
     availableRotations: ref([]),
     rotationsLoading: ref(false),
     selectTarget,
+    clearTarget: vi.fn(() => {
+      selectedTarget.value = null
+    }),
     togglePlay: vi.fn(() => {
       isPlaying.value = !isPlaying.value
     }),
@@ -327,5 +330,26 @@ describe('App', () => {
     expect(tabs).toHaveLength(1)
     expect(tabs[0]!.text()).toContain('Application log')
     expect(tabs[0]!.attributes('aria-selected')).toBe('true')
+  })
+
+  it('inicia sem tabs abertas', () => {
+    const wrapper = mountApp()
+
+    expect(wrapper.findAll('.tabs .tab')).toHaveLength(0)
+  })
+
+  it('fecha a última tab e limpa a seleção', async () => {
+    const state = createLogStreamState()
+    useLogStreamMock.mockReturnValue(state)
+    const wrapper = mountApp()
+
+    await wrapper.findAll('aside button')[0]!.trigger('click')
+    expect(wrapper.findAll('.tabs .tab')).toHaveLength(1)
+
+    await wrapper.find('.tab__close').trigger('click')
+
+    expect(wrapper.findAll('.tabs .tab')).toHaveLength(0)
+    expect(state.clearTarget).toHaveBeenCalledOnce()
+    expect(state.selectedTarget.value).toBeNull()
   })
 })

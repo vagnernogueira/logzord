@@ -24,10 +24,12 @@ class FakeWebSocket {
   }
 }
 
+let stream: ReturnType<typeof useLogStream> | null = null
+
 const TestHarness = defineComponent({
   name: 'TestHarness',
   setup() {
-    useLogStream()
+    stream = useLogStream()
     return () => h('div', [h('div', { id: 'log-container' })])
   },
 })
@@ -79,5 +81,46 @@ describe('useLogStream', () => {
     await nextTick()
 
     expect(container.scrollTop).toBe(480)
+  })
+
+  it('não seleciona nenhum target ao carregar a árvore', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        json: async () => [{ type: 'target', id: 'app', label: 'App', path: '/var/log/app.log' }],
+      }),
+    )
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+
+    expect(stream!.tree.value).toHaveLength(1)
+    expect(stream!.selectedTarget.value).toBeNull()
+  })
+
+  it('não inicia streaming sem target selecionado', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+
+    stream!.togglePlay()
+
+    expect(stream!.isPlaying.value).toBe(false)
+    expect(wsInstances[0]!.send).not.toHaveBeenCalled()
+  })
+
+  it('clearTarget pausa o streaming e zera a seleção', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+    stream!.togglePlay()
+    expect(stream!.isPlaying.value).toBe(true)
+
+    stream!.clearTarget()
+
+    expect(ws.send).toHaveBeenLastCalledWith(JSON.stringify({ type: 'PAUSE_STREAM' }))
+    expect(stream!.isPlaying.value).toBe(false)
+    expect(stream!.selectedTarget.value).toBeNull()
+    expect(stream!.currentWsOffset.value).toBe(0)
   })
 })

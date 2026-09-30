@@ -4,6 +4,7 @@ import type { LogEntry } from '@/types'
 defineProps<{
   filteredLogs: LogEntry[]
   isPlaying: boolean
+  hasTarget: boolean
   syntaxHighlight: (content: string) => string
 }>()
 </script>
@@ -21,7 +22,12 @@ defineProps<{
         v-if="isPlaying"
         class="w-16 h-16 border-4 border-muted border-t-primary rounded-full animate-spin mb-4 opacity-50"
       />
-      <p>{{ isPlaying ? 'Aguardando logs...' : 'Streaming pausado. Clique no Play para iniciar.' }}</p>
+      <p v-if="!hasTarget">
+        Selecione um log na árvore.
+      </p>
+      <p v-else>
+        {{ isPlaying ? 'Aguardando logs...' : 'Streaming pausado. Clique no Play para iniciar.' }}
+      </p>
     </div>
     <!-- eslint-disable-next-line vue/no-v-html -->
     <div
