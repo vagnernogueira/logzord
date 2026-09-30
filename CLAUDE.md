@@ -1,1 +1,1 @@
-AGENTS.md
+_docs/AGENTS.md
