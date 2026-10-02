@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
 import { findTargetById } from '@/lib/logTree'
 
@@ -43,6 +43,14 @@ export function useLogStream() {
   let shouldReconnect = true
   // Estado de play por aba: os controles comandam só a aba em foco; aba sem estado prévio abre tocando.
   const playStateByTarget = new Map<string, boolean>()
+  // Filtro por aba: editar o campo altera só o filtro da aba em foco.
+  const filterByTarget = new Map<string, string>()
+
+  watch(filterText, (value) => {
+    if (selectedTarget.value) {
+      filterByTarget.set(selectedTarget.value.id, value)
+    }
+  }, { flush: 'sync' })
 
   const filteredLogs = computed(() => {
     if (!filterText.value) return logs.value
@@ -100,6 +108,7 @@ export function useLogStream() {
       stopStream()
     }
     selectedTarget.value = target
+    filterText.value = filterByTarget.get(target.id) ?? ''
     logs.value = []
     currentWsOffset.value = 0
     availableRotations.value = []
@@ -111,6 +120,7 @@ export function useLogStream() {
 
   function forgetTarget(id: string) {
     playStateByTarget.delete(id)
+    filterByTarget.delete(id)
   }
 
   function clearTarget() {
@@ -119,6 +129,7 @@ export function useLogStream() {
       isPlaying.value = false
     }
     selectedTarget.value = null
+    filterText.value = ''
     logs.value = []
     currentWsOffset.value = 0
     availableRotations.value = []

@@ -173,6 +173,41 @@ describe('useLogStream', () => {
     expect(stream!.isPlaying.value).toBe(true)
   })
 
+  it('filtro afeta somente a aba em foco', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const app = { type: 'target' as const, id: 'app', label: 'App' }
+    const worker = { type: 'target' as const, id: 'worker', label: 'Worker' }
+
+    stream!.selectTarget(app)
+    stream!.filterText.value = 'ERROR'
+
+    stream!.selectTarget(worker)
+    expect(stream!.filterText.value).toBe('')
+    stream!.filterText.value = 'WARN'
+
+    stream!.selectTarget(app)
+    expect(stream!.filterText.value).toBe('ERROR')
+
+    stream!.selectTarget(worker)
+    expect(stream!.filterText.value).toBe('WARN')
+  })
+
+  it('forgetTarget e clearTarget descartam o filtro', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const app = { type: 'target' as const, id: 'app', label: 'App' }
+
+    stream!.selectTarget(app)
+    stream!.filterText.value = 'ERROR'
+    stream!.clearTarget()
+    expect(stream!.filterText.value).toBe('')
+
+    stream!.forgetTarget('app')
+    stream!.selectTarget(app)
+    expect(stream!.filterText.value).toBe('')
+  })
+
   it('continua tocando após STREAM_END (fim da leitura atual)', async () => {
     mount(TestHarness, { attachTo: document.body })
     await flushPromises()
