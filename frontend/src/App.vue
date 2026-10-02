@@ -210,7 +210,7 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
                 variant="ghost"
                 size="icon"
                 class="!h-7 !w-7 rounded-full shadow-md transition-all duration-300 active:scale-95"
-                :class="isPlaying ? 'bg-primary/20 text-primary hover:bg-primary/30' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
+                :class="isPlaying ? 'bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
                 :aria-label="isPlaying ? 'Pausar streaming' : 'Iniciar streaming'"
                 @click="togglePlay"
               >
