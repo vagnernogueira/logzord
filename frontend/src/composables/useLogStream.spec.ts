@@ -83,6 +83,18 @@ describe('useLogStream', () => {
     expect(container.scrollTop).toBe(480)
   })
 
+  it('syntaxHighlight escapa HTML do conteúdo e mantém os realces', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+
+    const html = stream!.syntaxHighlight(`[ERROR] ORA-00942 <img src=x onerror="alert('x')"> & fim`)
+
+    expect(html).not.toContain('<img')
+    expect(html).toContain('&lt;img src=x onerror=&quot;alert(&#39;x&#39;)&quot;&gt; &amp; fim')
+    expect(html).toContain('<span class="text-red-500 font-bold">[ERROR]</span>')
+    expect(html).toContain('<span class="text-red-600 font-bold bg-red-100 px-1 rounded">ORA-00942</span>')
+  })
+
   it('não seleciona nenhum target ao carregar a árvore', async () => {
     vi.stubGlobal(
       'fetch',

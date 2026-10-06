@@ -23,6 +23,15 @@ function savePersistedRotations(map: PersistedRotations) {
   }
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function useLogStream() {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws'
@@ -57,8 +66,9 @@ export function useLogStream() {
     return logs.value.filter(log => log.content.includes(filterText.value))
   })
 
+  // O resultado vai para v-html: escapar o conteúdo do log antes de injetar os spans de realce.
   function syntaxHighlight(content: string): string {
-    return content
+    return escapeHtml(content)
       .replace(/\[ERROR\]/g, '<span class="text-red-500 font-bold">[ERROR]</span>')
       .replace(/\[WARN\]/g, '<span class="text-yellow-500 font-bold">[WARN]</span>')
       .replace(/\[INFO\]/g, '<span class="text-blue-500 font-bold">[INFO]</span>')
