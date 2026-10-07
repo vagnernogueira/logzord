@@ -74,8 +74,8 @@ frontend/src/
 ### 3.2 Fluxo de dados
 
 - `App.vue` instancia `useLogStream()` e `useRecording()` e conecta os dois por meio de `setOnLogEntry(...)`.
-- `useLogStream` busca a árvore de targets `tree` (`GET /api/targets`) e as rotações sob demanda (`GET /api/targets/:id/rotations`), mantém `selectedTarget`, `isPlaying`, `filterText`, `filteredLogs` e `currentWsOffset`, e controla o WebSocket.
-- `useRecording` encapsula a persistência local via Dexie/IndexedDB e expõe `isRecording`, `recordedCount`, `toggleRecord`, `recordLine`, `clearRecord` e `exportRecord`.
+- `useLogStream` busca a árvore de targets `tree` (`GET /api/targets`) e as rotações sob demanda (`GET /api/targets/:id/rotations`), baixa o log da aba em foco (`downloadLog` → `GET /api/targets/:id/download`, que o backend entrega como anexo e comprime em `.gz` por stream acima de 5MB — CA5), mantém `selectedTarget`, `isPlaying`, `filterText`, `filteredLogs` e `currentWsOffset`, e controla o WebSocket.
+- `useRecording` encapsula a persistência local via Dexie/IndexedDB e expõe `isRecording`, `recordedCount`, `toggleRecord`, `recordLine`, `clearRecord` e `exportRecord` (`.txt`, ou `.txt.gz` via `CompressionStream` nativo acima de 5MB — CA5; `lib/gzip.ts`).
 - `App.vue` compõe a casca com `ShellTitleBar`, `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellStatusBar` e `ShellCommandPalette`, todos de `@vagnernogueira/vsshellcode/vue`, e registra atalhos com `useShellKeybindings`. `ShellPanel` não é usado: o painel inferior foi removido da UI (`togglePanel` em `App.vue` é um stub exigido por `useShellKeybindings`).
 - `views.config.ts` declara as views `TargetsSection` (id `targets`, título "Logs") e `AnalysisSection` (id `analysis`); a `ShellActivityBar` seleciona a view ativa e `ShellSidebar` renderiza o componente correspondente com as props de `ViewPropsContext`.
 - Cada target selecionado abre uma aba em `ShellTabs` (`openTargetIds`); fechar a aba ativa seleciona a última restante, e fechar a última aba limpa a seleção (`clearTarget`).
@@ -117,7 +117,7 @@ frontend/src/
 
 ```ascii
 [ App.vue ]
-   |-- useLogStream() -----> GET /api/targets(/:id/rotations) + WebSocket START_STREAM/PAUSE_STREAM
+   |-- useLogStream() -----> GET /api/targets(/:id/rotations|/:id/download) + WebSocket START_STREAM/PAUSE_STREAM
    |                         (reconexão automática com backoff fixo de 5s em close/error)
    |-- useRecording() -----> Dexie / IndexedDB
    |

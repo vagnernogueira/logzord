@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
-import { createApp } from '../../app.js';
+import { COMPRESSION_THRESHOLD_BYTES, createApp } from '../../app.js';
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logzord-api-test-'));
 
@@ -70,6 +71,81 @@ describe('GET /api/targets/:id/rotations', () => {
     fs.writeFileSync(targetsPath, JSON.stringify([]));
 
     const response = await request(createApp({ targetsPath })).get('/api/targets/missing/rotations');
+
+    expect(response.status).toBe(404);
+  });
+});
+
+describe('GET /api/targets/:id/download', () => {
+  function setup(content: string | Buffer) {
+    const testDir = fs.mkdtempSync(path.join(tempDir, 'download-'));
+    const targetsPath = path.join(testDir, 'targets.json');
+    const logPath = path.join(testDir, 'sample.log');
+    fs.writeFileSync(logPath, content);
+    fs.writeFileSync(
+      targetsPath,
+      JSON.stringify([{ type: 'target', id: 'sample', label: 'Sample', path: logPath }]),
+    );
+    return { app: createApp({ targetsPath }), logPath };
+  }
+
+  function binaryParser(res: NodeJS.ReadableStream & { setEncoding: (e: string) => void }, done: (err: Error | null, body: Buffer) => void) {
+    const chunks: Buffer[] = [];
+    res.on('data', (chunk: Buffer) => chunks.push(chunk));
+    res.on('end', () => done(null, Buffer.concat(chunks)));
+  }
+
+  it('serves files up to the threshold uncompressed as an attachment', async () => {
+    const { app } = setup('linha 1\nlinha 2\n');
+
+    const response = await request(app).get('/api/targets/sample/download');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/plain');
+    expect(response.headers['content-disposition']).toBe('attachment; filename="sample.log"');
+    expect(response.text).toBe('linha 1\nlinha 2\n');
+  });
+
+  it('gzips files above the threshold', async () => {
+    const line = 'x'.repeat(1023) + '\n';
+    const content = Buffer.from(line.repeat(Math.ceil(COMPRESSION_THRESHOLD_BYTES / line.length) + 1));
+    const { app } = setup(content);
+
+    const response = await request(app)
+      .get('/api/targets/sample/download')
+      .buffer(true)
+      .parse(binaryParser);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toBe('application/gzip');
+    expect(response.headers['content-disposition']).toBe('attachment; filename="sample.log.gz"');
+    expect(zlib.gunzipSync(response.body).equals(content)).toBe(true);
+  });
+
+  it('downloads a rotation by its id', async () => {
+    const { app, logPath } = setup('current\n');
+    fs.writeFileSync(`${logPath}.2026-08-21`, 'older\n');
+
+    const response = await request(app).get(`/api/targets/${encodeURIComponent('sample::2026-08-21')}/download`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-disposition']).toBe('attachment; filename="sample.log.2026-08-21"');
+    expect(response.text).toBe('older\n');
+  });
+
+  it('returns 404 for an unknown target', async () => {
+    const { app } = setup('');
+
+    const response = await request(app).get('/api/targets/missing/download');
+
+    expect(response.status).toBe(404);
+  });
+
+  it('returns 404 when the log file does not exist', async () => {
+    const { app, logPath } = setup('');
+    fs.rmSync(logPath);
+
+    const response = await request(app).get('/api/targets/sample/download');
 
     expect(response.status).toBe(404);
   });

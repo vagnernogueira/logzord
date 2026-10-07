@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Play, Pause, FastForward, Rewind } from 'lucide-vue-next'
+import { Play, Pause, FastForward, Rewind, Download } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
@@ -36,6 +36,7 @@ const {
   clearTarget,
   forgetTarget: forgetPlayState,
   togglePlay,
+  downloadLog,
   syntaxHighlight,
   setOnLogEntry,
   getWsState,
@@ -143,6 +144,7 @@ function openCommandPalette() {
 const commandHandlers: Record<string, () => void> = {
   'toggle-sidebar': toggleSidebar,
   'toggle-play': togglePlay,
+  'download-log': downloadLog,
   'toggle-record': toggleRecord,
   'export-record': () => void exportRecord(),
   'clear-record': () => void clearRecord(),
@@ -252,6 +254,25 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
               <FastForward :size="13" />
             </Button>
           </div>
+
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="!h-7 !w-7 rounded-full border border-border bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80"
+                aria-label="Baixar log"
+                :disabled="!selectedTarget"
+                @click="downloadLog"
+              >
+                <Download :size="13" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Baixar o arquivo de log (.gz acima de 5MB)</p>
+            </TooltipContent>
+          </Tooltip>
 
           <Tooltip>
             <TooltipTrigger as-child>

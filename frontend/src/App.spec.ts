@@ -253,6 +253,7 @@ function createLogStreamState() {
       selectedTarget.value = null
     }),
     forgetTarget: vi.fn(),
+    downloadLog: vi.fn(),
     togglePlay: vi.fn(() => {
       isPlaying.value = !isPlaying.value
     }),
@@ -383,5 +384,15 @@ describe('App', () => {
     expect(state.selectTarget).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'app' }))
     expect(state.forgetTarget).toHaveBeenCalledWith('worker')
     expect(state.forgetTarget.mock.invocationCallOrder[0]).toBeGreaterThan(fallbackCall)
+  })
+
+  it('o comando download-log aciona downloadLog', async () => {
+    const state = createLogStreamState()
+    useLogStreamMock.mockReturnValue(state)
+    const wrapper = mountApp()
+
+    wrapper.findComponent({ name: 'ShellCommandPalette' }).vm.$emit('execute', 'download-log')
+
+    expect(state.downloadLog).toHaveBeenCalledOnce()
   })
 })

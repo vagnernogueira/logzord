@@ -4,12 +4,16 @@ import { WebSocketServer } from 'ws';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
+import { pipeline } from 'stream';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultTargetsPath = path.resolve(__dirname, '../targets.json');
 const ROTATION_ID_PATTERN = /^(.+)::(\d{4}-\d{2}-\d{2})$/;
+// CA5: downloads acima de 5MB saem em .gz; a compressão é por stream, sem limite de tamanho.
+export const COMPRESSION_THRESHOLD_BYTES = 5 * 1024 * 1024;
 
 function byteLengthOf(chunk) {
   return Buffer.byteLength(chunk, 'utf8');
@@ -120,6 +124,46 @@ export function createApp({ targetsPath = defaultTargetsPath } = {}) {
     } catch (error) {
       res.status(500).json({ error: 'Failed to read rotations' });
     }
+  });
+
+  app.get('/api/targets/:id/download', (req, res) => {
+    let logPath;
+    try {
+      logPath = resolveLogPath(loadTargetTree(targetsPath), req.params.id);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to read targets' });
+      return;
+    }
+
+    if (!logPath) {
+      res.status(404).json({ error: 'Target not found' });
+      return;
+    }
+
+    fs.stat(logPath, (statError, stats) => {
+      if (statError || !stats.isFile()) {
+        res.status(404).json({ error: 'Log file not found' });
+        return;
+      }
+
+      const filename = path.basename(logPath);
+      const compress = stats.size > COMPRESSION_THRESHOLD_BYTES;
+      const streams = [fs.createReadStream(logPath)];
+
+      if (compress) {
+        streams.push(zlib.createGzip());
+        // attachment() deduz o Content-Type pela extensão; type() depois fixa o tipo real.
+        res.attachment(`${filename}.gz`).type('application/gzip');
+      } else {
+        res.attachment(filename).type('text/plain; charset=utf-8');
+      }
+
+      pipeline(...streams, res, (pipelineError) => {
+        if (pipelineError && !res.headersSent) {
+          res.status(500).json({ error: 'Failed to read log file' });
+        }
+      });
+    });
   });
 
   return app;

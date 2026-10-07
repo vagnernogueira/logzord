@@ -1,8 +1,14 @@
 import { defineComponent, h, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { addMock } = vi.hoisted(() => ({ addMock: vi.fn() }))
+const { addMock, toArrayMock, gzipBlobMock } = vi.hoisted(() => ({
+  addMock: vi.fn(),
+  toArrayMock: vi.fn(),
+  gzipBlobMock: vi.fn(async () => new Blob(['gz'], { type: 'application/gzip' })),
+}))
+
+vi.mock('@/lib/gzip', () => ({ gzipBlob: gzipBlobMock }))
 
 vi.mock('dexie', () => ({
   default: class {
@@ -10,12 +16,12 @@ vi.mock('dexie', () => ({
       return { stores: () => {} }
     }
     table() {
-      return { add: addMock, count: async () => addMock.mock.calls.length }
+      return { add: addMock, toArray: toArrayMock, count: async () => addMock.mock.calls.length }
     }
   },
 }))
 
-import { useRecording } from './useRecording'
+import { COMPRESSION_THRESHOLD_BYTES, useRecording } from './useRecording'
 
 const activeTargetId = ref<string | null>(null)
 let recording: ReturnType<typeof useRecording> | null = null
@@ -67,5 +73,44 @@ describe('useRecording', () => {
     recording!.forgetTarget('app')
 
     expect(recording!.isRecording.value).toBe(false)
+  })
+
+  describe('exportRecord', () => {
+    function captureDownloads() {
+      const names: string[] = []
+      vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} })
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        names.push(this.download)
+      })
+      return names
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+      vi.restoreAllMocks()
+      gzipBlobMock.mockClear()
+    })
+
+    it('baixa .txt sem compressão até o limite', async () => {
+      const names = captureDownloads()
+      toArrayMock.mockResolvedValue([{ content: 'linha 1' }, { content: 'linha 2' }])
+      mount(TestHarness)
+
+      await recording!.exportRecord()
+
+      expect(gzipBlobMock).not.toHaveBeenCalled()
+      expect(names).toEqual(['logzord_analysis.txt'])
+    })
+
+    it('comprime em .gz acima do limite', async () => {
+      const names = captureDownloads()
+      toArrayMock.mockResolvedValue([{ content: 'x'.repeat(COMPRESSION_THRESHOLD_BYTES + 1) }])
+      mount(TestHarness)
+
+      await recording!.exportRecord()
+
+      expect(gzipBlobMock).toHaveBeenCalledOnce()
+      expect(names).toEqual(['logzord_analysis.txt.gz'])
+    })
   })
 })

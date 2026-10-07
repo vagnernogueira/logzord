@@ -306,6 +306,16 @@ export function useLogStream() {
     }
   }
 
+  // O backend responde com Content-Disposition (e .gz acima de 5MB, CA5): o browser baixa por stream.
+  function downloadLog() {
+    if (!selectedTarget.value) return
+    const a = document.createElement('a')
+    a.href = `${API_URL}/targets/${encodeURIComponent(selectedTarget.value.id)}/download`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
   function scrollToBottom() {
     const container = document.getElementById('log-container')
     if (container) {
@@ -349,6 +359,7 @@ export function useLogStream() {
     clearTarget,
     forgetTarget,
     togglePlay,
+    downloadLog,
     syntaxHighlight,
     setOnLogEntry,
     getWsState,

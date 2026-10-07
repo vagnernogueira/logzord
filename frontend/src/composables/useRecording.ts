@@ -1,5 +1,9 @@
 import { ref, computed, onMounted, type Ref } from 'vue'
 import Dexie from 'dexie'
+import { gzipBlob } from '@/lib/gzip'
+
+// CA5: exports acima de 5MB saem em .gz.
+export const COMPRESSION_THRESHOLD_BYTES = 5 * 1024 * 1024
 
 export function useRecording(activeTargetId: Ref<string | null>) {
   const db = new Dexie('LogzordAnalysisDB')
@@ -52,9 +56,8 @@ export function useRecording(activeTargetId: Ref<string | null>) {
     const content = allRecords.map((r: { content: string }) => r.content).join('\n')
     const blob = new Blob([content], { type: 'text/plain' })
 
-    if (blob.size > 5 * 1024 * 1024) {
-      downloadBlob(blob, 'logzord_analysis.txt')
-      alert('Arquivo grande! Seria compactado para .zip ou .gz conforme CA 5.')
+    if (blob.size > COMPRESSION_THRESHOLD_BYTES) {
+      downloadBlob(await gzipBlob(blob), 'logzord_analysis.txt.gz')
     } else {
       downloadBlob(blob, 'logzord_analysis.txt')
     }

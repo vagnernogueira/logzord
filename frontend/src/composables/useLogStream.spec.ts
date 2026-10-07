@@ -326,4 +326,21 @@ describe('useLogStream', () => {
     expect(stream!.logs.value).toEqual([])
     expect(stream!.currentWsOffset.value).toBe(0)
   })
+
+  it('downloadLog baixa o log da aba em foco pelo endpoint de download', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      hrefs.push(this.href)
+    })
+    const hrefs: string[] = []
+
+    stream!.downloadLog()
+    expect(click).not.toHaveBeenCalled()
+
+    stream!.selectTarget({ type: 'target', id: 'app::2026-08-21', label: 'App' })
+    stream!.downloadLog()
+
+    expect(hrefs).toEqual(['http://localhost:3001/api/targets/app%3A%3A2026-08-21/download'])
+  })
 })

@@ -23,6 +23,7 @@ O Logzord é uma SPA Vue 3 com backend Node.js que permite monitorar arquivos de
 - Streaming contínuo de logs via WebSocket
 - Controle play/pause com retomada exata por byte offset
 - Quadro de Análise: gravação das linhas filtradas com exportação
+- Download do arquivo de log da aba em foco (`.gz` acima de 5MB, comprimido no servidor)
 
 ## Guia de Onboarding
 

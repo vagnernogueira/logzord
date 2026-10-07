@@ -8,7 +8,7 @@ Visualizador de logs em tempo real: SPA Vue 3 + backend Node.js (Express, `ws`) 
 
 - Preservar o comportamento atual; operar no escopo mínimo da demanda.
 - Ancorar cada afirmação em código ou documentação; declarar como suposição o que faltar.
-- Mudar o protocolo WebSocket ou o contrato de API só com justificativa explícita. Contrato atual: `GET /api/targets`, `GET /api/targets/:id/rotations`; WebSocket em `/ws` (`START_STREAM` {`targetId`, `offset`} → `LOG_CHUNK` {content, offset} · `STREAM_END` · `ERROR`; `PAUSE_STREAM`).
+- Mudar o protocolo WebSocket ou o contrato de API só com justificativa explícita. Contrato atual: `GET /api/targets`, `GET /api/targets/:id/rotations`, `GET /api/targets/:id/download` (anexo; `.gz` acima de 5MB); WebSocket em `/ws` (`START_STREAM` {`targetId`, `offset`} → `LOG_CHUNK` {content, offset} · `STREAM_END` · `ERROR`; `PAUSE_STREAM`).
 - Preferir a solução simples à abstração prematura.
 - Tratar MCP como camada opcional: só declarar sucesso com evidência retornada (`context7`, `https://mcp.context7.com/mcp`, token por variável de ambiente).
 
