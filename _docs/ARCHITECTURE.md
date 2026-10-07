@@ -74,7 +74,7 @@ frontend/src/
 ### 3.2 Fluxo de dados
 
 - `App.vue` instancia `useLogStream()` e `useRecording()` e conecta os dois por meio de `setOnLogEntry(...)`.
-- `useLogStream` busca a árvore de targets `tree` (`GET /api/targets`) e as rotações sob demanda (`GET /api/targets/:id/rotations`), baixa o log da aba em foco (`downloadLog` → `GET /api/targets/:id/download`, que o backend entrega como anexo e comprime em `.gz` por stream acima de 5MB — CA5), mantém `selectedTarget`, `isPlaying`, `filterText`, `filteredLogs` e `currentWsOffset`, e controla o WebSocket.
+- `useLogStream` busca a árvore de targets `tree` (`GET /api/targets`) e as rotações sob demanda (`GET /api/targets/:id/rotations`), baixa o log da aba em foco (`downloadLog` → `GET /api/targets/:id/download`, que o backend entrega como anexo e comprime em `.gz` por stream acima de 5MB — CA5), mantém `selectedTarget`, `isPlaying`, `filterText`, `filteredLogs` e `currentWsOffset`, e controla o WebSocket. Também lê `pageLines` de `GET /api/config` e implementa a navegação da história 5 (`rewind`, `fastForward`; ver §7.1).
 - `useRecording` encapsula a persistência local via Dexie/IndexedDB e expõe `isRecording`, `recordedCount`, `toggleRecord`, `recordLine`, `clearRecord` e `exportRecord` (`.txt`, ou `.txt.gz` via `CompressionStream` nativo acima de 5MB — CA5; `lib/gzip.ts`).
 - `App.vue` compõe a casca com `ShellTitleBar`, `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellStatusBar` e `ShellCommandPalette`, todos de `@vagnernogueira/vsshellcode/vue`, e registra atalhos com `useShellKeybindings`. `ShellPanel` não é usado: o painel inferior foi removido da UI (`togglePanel` em `App.vue` é um stub exigido por `useShellKeybindings`).
 - `views.config.ts` declara as views `TargetsSection` (id `targets`, título "Logs") e `AnalysisSection` (id `analysis`); a `ShellActivityBar` seleciona a view ativa e `ShellSidebar` renderiza o componente correspondente com as props de `ViewPropsContext`.
@@ -85,7 +85,7 @@ frontend/src/
 
 ### 3.3 Componentes de interface
 
-- **Title bar (`ShellTitleBar`, slots em `App.vue`):** campo de filtro textual, botão play/pause, botões rewind/fast-forward (sem handler ligado) e toggle de gravação.
+- **Title bar (`ShellTitleBar`, slots em `App.vue`):** campo de filtro textual, botão play/pause, botões rewind/fast-forward (também nos comandos `stream-rewind`/`stream-fast-forward`; Rewind desabilitado com o buffer no início do arquivo) e toggle de gravação.
 - **Status bar (`ShellStatusBar`):** estado da conexão WebSocket (esquerda) e `OFFSET` corrente em bytes (direita).
 - `TargetsSection.vue` (sidebar) exibe a árvore hierárquica de targets com rotações sob demanda.
 - `AnalysisSection.vue` (sidebar) mostra o `Quadro de Análise`, com ações de exportação e limpeza do buffer gravado.
@@ -157,6 +157,10 @@ _docs/
 - **Contrato de Streaming:** O backend deve enviar chunks de texto acompanhados do **byte offset** final daquele chunk.
 - **Protocolo de Pausa (CA2):** Ao retomar (Play), o frontend envia o último byte offset recebido; o servidor inicia o `createReadStream` a partir desse ponto exato.
 - **Endpoint de conexão WebSocket:** o frontend conecta em `<origem>/ws` (antes, na raiz). O `WebSocketServer` do backend não filtra por path, então a mudança é só do lado do client/roteamento — o protocolo de mensagens (`START_STREAM`, `PAUSE_STREAM`, `LOG_CHUNK`, `STREAM_END`, `ERROR`) não muda.
+- **Navegação temporal (história 5):** reposiciona por byte offset, sem timestamp. O tamanho da página é `pageLines` (linhas), lido de `backend/config.json` via `GET /api/config` (default 50, limite 1–2000, arquivo ausente/inválido → default). O cliente converte linhas em bytes pela média de bytes/linha do buffer (200B com buffer vazio) com folga de 2× e corta o resultado em N linhas.
+  - **Rewind:** só cliente, sem mudar o protocolo. Lê `[X, inícioDoBuffer)` com `START_STREAM` em X, descarta a primeira linha parcial, envia `PAUSE_STREAM` ao alcançar o início do buffer e **prefixa** as N linhas mais próximas dele. Acima de 2000 linhas saem as mais novas e `currentWsOffset` recua até a última mantida (o Play relê o trecho cortado). Termina pausado.
+  - **Fast Forward:** `START_STREAM` com `fromEnd` (bytes, opcional): o servidor começa em `max(offset, tamanho − fromEnd)`, nunca antes do offset do cliente. Sem salto, os chunks são anexados (vira Play); com salto, o cliente acumula a cauda até o `STREAM_END` e substitui o buffer pelas N últimas linhas. Segue tocando.
+- **Guarda de continuidade:** o cliente mantém o byte esperado do próximo chunk (`expectedOffset`; nulo quando pausado). Um `LOG_CHUNK` é aceito se começa até esse byte e termina depois dele (a sobreposição é recortada); lacuna é descartada, exceto o salto do Fast Forward. Isso neutraliza chunks em voo de um stream anterior do mesmo alvo.
 - **Reconexão automática:** `useLogStream.ts` reconecta o WebSocket automaticamente após `close`/`error`, com espera fixa de 5s (`scheduleReconnect`), enquanto o composable estiver montado (`shouldReconnect`). Ao reabrir a conexão, se `isPlaying` ainda estiver ativo o cliente reenvia `START_STREAM` com o último `currentWsOffset` conhecido — a retomada após reconexão segue o mesmo contrato de byte offset do Play/Pause manual (ver [ADR-001](./decisoes/ADR-001-resume-offset.md)).
 
 ### 7.2 Decisões arquiteturais centrais
@@ -168,8 +172,9 @@ _docs/
 
 ### 7.3 Limitações conhecidas (resumo)
 
+- `LOG_CHUNK` não carrega `targetId`: um chunk em voo de outra aba só é aceito se, por coincidência, cobrir exatamente o byte esperado da aba atual. No Fast Forward, um chunk em voo que salte além do byte esperado (fragmento pendente no momento do clique) pode ser lido como o salto; um novo Play/Fast Forward recupera. Eliminar de vez exige identificar o stream no protocolo.
 - Retomada de stream requer armazenamento preciso do byte offset pelo frontend; imprecisão resulta em lacuna ou sobreposição de logs.
-- Integridade por linha (CA2): `LOG_CHUNK` traz texto arbitrário; `useLogStream.ts` retém o fragmento final sem `\n` e só emite linhas completas. O offset de retomada (`currentWsOffset`) aponta para o fim da última linha completa, e o fragmento pendente é descartado a cada `START_STREAM` para ser relido do servidor. Consequência: uma última linha sem `\n` final não é exibida até o escritor completá-la.
+- Integridade por linha (CA2): `LOG_CHUNK` traz texto arbitrário; `useLogStream.ts` retém o fragmento final sem `\n` e só emite linhas completas. O offset de retomada (`currentWsOffset`) aponta para o fim da última linha completa; num novo `START_STREAM` da mesma aba o servidor relê o fragmento pendente e o cliente recorta a parte já recebida (guarda de continuidade, §7.1). Ao trocar de aba o fragmento é descartado. Consequência: uma última linha sem `\n` final não é exibida até o escritor completá-la.
 
 ### 7.4 Logs de teste locais
 
@@ -183,6 +188,7 @@ _docs/
 | Arquivo | Descrição |
 | :--- | :--- |
 | `backend/targets.json` | Lista de alvos de log disponíveis para streaming |
+| `backend/config.json` | Settings de runtime (`pageLines` do Rewind/Fast Forward), servidos em `GET /api/config` |
 | `frontend/package.json` | Dependências e scripts do frontend, incluindo `@vagnernogueira/vsshellcode` |
 | `.npmrc` | Registry scoped do GitHub Packages e referência ao `GITHUB_TOKEN` |
 | `frontend/src/main.ts` | Imports globais do tema, shell, codicon e web components do pacote antes do CSS da aplicação |

@@ -4,7 +4,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
-import { COMPRESSION_THRESHOLD_BYTES, createApp } from '../../app.js';
+import { COMPRESSION_THRESHOLD_BYTES, DEFAULT_CONFIG, createApp } from '../../app.js';
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logzord-api-test-'));
 
@@ -148,5 +148,39 @@ describe('GET /api/targets/:id/download', () => {
     const response = await request(app).get('/api/targets/sample/download');
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('GET /api/config', () => {
+  function getConfig(content) {
+    const configPath = path.join(fs.mkdtempSync(path.join(tempDir, 'config-')), 'config.json');
+    if (content !== undefined) {
+      fs.writeFileSync(configPath, content);
+    }
+    return request(createApp({ configPath })).get('/api/config');
+  }
+
+  it('returns the configured pageLines', async () => {
+    const response = await getConfig(JSON.stringify({ pageLines: 80 }));
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ pageLines: 80 });
+  });
+
+  it('falls back to the defaults when config.json does not exist', async () => {
+    const response = await getConfig(undefined);
+
+    expect(response.body).toEqual(DEFAULT_CONFIG);
+  });
+
+  it('falls back to the default for invalid JSON or a non-integer value', async () => {
+    expect((await getConfig('{ not json')).body).toEqual(DEFAULT_CONFIG);
+    expect((await getConfig(JSON.stringify({ pageLines: '80' }))).body).toEqual(DEFAULT_CONFIG);
+    expect((await getConfig(JSON.stringify({ pageLines: 12.5 }))).body).toEqual(DEFAULT_CONFIG);
+  });
+
+  it('clamps pageLines to 1..2000', async () => {
+    expect((await getConfig(JSON.stringify({ pageLines: 0 }))).body).toEqual({ pageLines: 1 });
+    expect((await getConfig(JSON.stringify({ pageLines: 5000 }))).body).toEqual({ pageLines: 2000 });
   });
 });

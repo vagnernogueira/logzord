@@ -36,6 +36,9 @@ const {
   clearTarget,
   forgetTarget: forgetPlayState,
   togglePlay,
+  rewind,
+  fastForward,
+  canRewind,
   downloadLog,
   syntaxHighlight,
   setOnLogEntry,
@@ -144,6 +147,8 @@ function openCommandPalette() {
 const commandHandlers: Record<string, () => void> = {
   'toggle-sidebar': toggleSidebar,
   'toggle-play': togglePlay,
+  'stream-rewind': rewind,
+  'stream-fast-forward': fastForward,
   'download-log': downloadLog,
   'toggle-record': toggleRecord,
   'export-record': () => void exportRecord(),
@@ -235,24 +240,42 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
           </Tooltip>
 
           <div class="flex h-7 items-center rounded-full border border-border bg-secondary p-0.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              class="!h-6 !w-6 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Retroceder"
-            >
-              <Rewind :size="13" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              class="!h-6 !w-6 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Avançar"
-            >
-              <FastForward :size="13" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="!h-6 !w-6 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Retroceder"
+                  :disabled="!canRewind"
+                  @click="rewind"
+                >
+                  <Rewind :size="13" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Retroceder</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="!h-6 !w-6 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Avançar"
+                  :disabled="!selectedTarget"
+                  @click="fastForward"
+                >
+                  <FastForward :size="13" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Ir para o fim (ao vivo)</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           <Tooltip>

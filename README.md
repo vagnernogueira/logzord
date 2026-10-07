@@ -22,6 +22,7 @@ O Logzord é uma SPA Vue 3 com backend Node.js que permite monitorar arquivos de
 - Listagem de alvos de log configurados via `targets.json`
 - Streaming contínuo de logs via WebSocket
 - Controle play/pause com retomada exata por byte offset
+- Navegação Rewind/Fast Forward em páginas de `pageLines` linhas (`backend/config.json`)
 - Quadro de Análise: gravação das linhas filtradas com exportação
 - Download do arquivo de log da aba em foco (`.gz` acima de 5MB, comprimido no servidor)
 
@@ -53,7 +54,7 @@ Execute os comandos a partir da raiz do repositório:
 npm install
 ```
 
-Configure os alvos de log em `backend/targets.json`.
+Configure os alvos de log em `backend/targets.json` e, opcionalmente, o tamanho da página de Rewind/Fast Forward em `backend/config.json` (`{ "pageLines": 50 }`, limite 1–2000; ausente ou inválido usa o default). Ambos são montados read-only no container pelo `compose.yaml` e relidos a cada request.
 
 ### Como Compilar
 

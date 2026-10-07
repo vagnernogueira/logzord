@@ -13,8 +13,9 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      # Montagem do arquivo de targets e do diretório de logs para leitura (ro = read-only)
+      # Montagem dos arquivos de targets e config e do diretório de logs para leitura (ro = read-only)
       - ./backend/targets.json:/app/targets.json:ro
+      - ./backend/config.json:/app/config.json:ro
       - ./wkr:/app/wkr:ro
       - /var/log:/var/log:ro
     restart: unless-stopped

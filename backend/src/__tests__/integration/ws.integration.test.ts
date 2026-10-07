@@ -241,4 +241,38 @@ describe('WebSocket log streaming', () => {
 
     expect(messages.filter((message) => message.type === 'LOG_CHUNK')).toEqual([]);
   });
+
+  it('starts at the tail of the file when fromEnd is given', async () => {
+    testServer = await createTestServer('aaaa\nbbbb\ncccc\n');
+    ws = await openWebSocket(testServer.url);
+
+    const streamMessages = waitForStreamEnd(ws);
+    ws.send(JSON.stringify({
+      type: 'START_STREAM',
+      targetId: 'sample',
+      offset: 0,
+      fromEnd: 10,
+    }));
+
+    const chunk = (await streamMessages).find((message) => message.type === 'LOG_CHUNK');
+    expect(chunk.content).toBe('bbbb\ncccc\n');
+    expect(chunk.offset).toBe(15);
+  });
+
+  it('never moves before the client offset when fromEnd is given', async () => {
+    testServer = await createTestServer('aaaa\nbbbb\ncccc\n');
+    ws = await openWebSocket(testServer.url);
+
+    const streamMessages = waitForStreamEnd(ws);
+    ws.send(JSON.stringify({
+      type: 'START_STREAM',
+      targetId: 'sample',
+      offset: 10,
+      fromEnd: 15,
+    }));
+
+    const chunk = (await streamMessages).find((message) => message.type === 'LOG_CHUNK');
+    expect(chunk.content).toBe('cccc\n');
+    expect(chunk.offset).toBe(15);
+  });
 });

@@ -36,22 +36,25 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
       menuItems: { type: Array as PropType<TitleBarMenuItem[]>, required: true },
     },
     emits: ['menu-click'],
-    setup(props, { emit }) {
+    setup(props, { emit, slots }) {
       return () =>
         h(
           'header',
           { class: 'title-bar' },
-          props.menuItems.map((item) =>
-            h(
-              'button',
-              {
-                class: 'title-bar__menu-item',
-                type: 'button',
-                onClick: () => emit('menu-click', item.id),
-              },
-              item.label,
+          [
+            ...props.menuItems.map((item) =>
+              h(
+                'button',
+                {
+                  class: 'title-bar__menu-item',
+                  type: 'button',
+                  onClick: () => emit('menu-click', item.id),
+                },
+                item.label,
+              ),
             ),
-          ),
+            slots.actions?.(),
+          ],
         )
     },
   })
@@ -254,6 +257,9 @@ function createLogStreamState() {
     }),
     forgetTarget: vi.fn(),
     downloadLog: vi.fn(),
+    rewind: vi.fn(),
+    fastForward: vi.fn(),
+    canRewind: ref(true),
     togglePlay: vi.fn(() => {
       isPlaying.value = !isPlaying.value
     }),
@@ -394,5 +400,29 @@ describe('App', () => {
     wrapper.findComponent({ name: 'ShellCommandPalette' }).vm.$emit('execute', 'download-log')
 
     expect(state.downloadLog).toHaveBeenCalledOnce()
+  })
+  it('os botões e comandos de navegação acionam rewind e fastForward', async () => {
+    const state = createLogStreamState()
+    state.selectedTarget.value = { type: 'target', id: 'app', label: 'App' }
+    useLogStreamMock.mockReturnValue(state)
+    const wrapper = mountApp()
+
+    await wrapper.find('[aria-label="Retroceder"]').trigger('click')
+    await wrapper.find('[aria-label="Avançar"]').trigger('click')
+    const palette = wrapper.findComponent({ name: 'ShellCommandPalette' })
+    palette.vm.$emit('execute', 'stream-rewind')
+    palette.vm.$emit('execute', 'stream-fast-forward')
+
+    expect(state.rewind).toHaveBeenCalledTimes(2)
+    expect(state.fastForward).toHaveBeenCalledTimes(2)
+  })
+
+  it('desabilita o Rewind quando canRewind é falso', () => {
+    const state = createLogStreamState()
+    state.canRewind.value = false
+    useLogStreamMock.mockReturnValue(state)
+    const wrapper = mountApp()
+
+    expect(wrapper.find('[aria-label="Retroceder"]').attributes('disabled')).toBeDefined()
   })
 })

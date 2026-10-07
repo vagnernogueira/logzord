@@ -63,6 +63,7 @@ describe('useLogStream', () => {
 
     const ws = wsInstances[0]
     expect(ws).toBeTruthy()
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
 
     const container = wrapper.get('#log-container').element as HTMLElement
     Object.defineProperty(container, 'scrollHeight', {
@@ -76,7 +77,7 @@ describe('useLogStream', () => {
         data: JSON.stringify({
           type: 'LOG_CHUNK',
           content: 'linha 1\n',
-          offset: 128,
+          offset: 8,
         }),
       }),
     )
@@ -342,5 +343,139 @@ describe('useLogStream', () => {
     stream!.downloadLog()
 
     expect(hrefs).toEqual(['http://localhost:3001/api/targets/app%3A%3A2026-08-21/download'])
+  })
+  describe('Rewind e Fast Forward', () => {
+    // Arquivo a partir do byte 82: '9\n' 82-84 · 'l0\n' -87 · 'l1\n' -90 · 'l2a\n' -94 · 'l3\n' -97 · 'l4\n' -100
+    const app = { type: 'target' as const, id: 'app', label: 'App' }
+
+    function streamEnd(ws: FakeWebSocket) {
+      return ws.onmessage?.(new MessageEvent('message', { data: JSON.stringify({ type: 'STREAM_END' }) }))
+    }
+
+    async function mountWithPageLines(pageLines: number) {
+      vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+        json: async () => (url.endsWith('/config') ? { pageLines } : []),
+      })))
+      mount(TestHarness, { attachTo: document.body })
+      await flushPromises()
+      return wsInstances[0]!
+    }
+
+    async function fastForwardToTail(ws: FakeWebSocket) {
+      stream!.selectTarget(app)
+      stream!.fastForward()
+      await logChunk(ws, '\nl2a\nl3\nl4\n', 100)
+      await streamEnd(ws)
+    }
+
+    it('lê pageLines de GET /api/config', async () => {
+      await mountWithPageLines(7)
+
+      expect(stream!.pageLines.value).toBe(7)
+    })
+
+    it('Fast Forward com salto substitui o buffer pelas N últimas linhas e segue tocando', async () => {
+      const ws = await mountWithPageLines(2)
+      const lines: string[] = []
+      stream!.setOnLogEntry((line) => lines.push(line))
+      stream!.selectTarget(app)
+      await logChunk(ws, 'a\n', 2)
+
+      stream!.fastForward()
+      expect(ws.send).toHaveBeenLastCalledWith(
+        JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 2, fromEnd: 8 }),
+      )
+
+      await logChunk(ws, '\nl2a\nl3\nl4\n', 100)
+      expect(stream!.logs.value.map((log) => log.content)).toEqual(['a'])
+
+      await streamEnd(ws)
+      expect(stream!.logs.value.map((log) => [log.content, log.offset])).toEqual([['l3', 97], ['l4', 100]])
+      expect(stream!.currentWsOffset.value).toBe(100)
+      expect(stream!.isPlaying.value).toBe(true)
+      expect(lines).toEqual(['a', 'l3', 'l4'])
+
+      await logChunk(ws, 'l5\n', 103)
+      expect(stream!.logs.value.map((log) => log.content)).toEqual(['l3', 'l4', 'l5'])
+    })
+
+    it('Fast Forward sem salto anexa ao buffer atual', async () => {
+      const ws = await mountWithPageLines(2)
+      stream!.selectTarget(app)
+      await logChunk(ws, 'a\n', 2)
+
+      stream!.fastForward()
+      await logChunk(ws, 'b\n', 4)
+
+      expect(stream!.logs.value.map((log) => log.content)).toEqual(['a', 'b'])
+      expect(stream!.currentWsOffset.value).toBe(4)
+    })
+
+    it('Rewind prefixa as N linhas anteriores ao buffer e pausa', async () => {
+      const ws = await mountWithPageLines(2)
+      await fastForwardToTail(ws)
+      const lines: string[] = []
+      stream!.setOnLogEntry((line) => lines.push(line))
+      expect(stream!.canRewind.value).toBe(true)
+
+      stream!.rewind()
+      expect(stream!.isPlaying.value).toBe(false)
+      expect(ws.send).toHaveBeenLastCalledWith(
+        JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 82 }),
+      )
+
+      // Chunk do stream ao vivo ainda em voo: lacuna em relação ao início da página, descartado.
+      await logChunk(ws, 'l5\n', 103)
+      await logChunk(ws, '9\nl0\nl1\nl2a\nl3\nl4\n', 100)
+
+      expect(ws.send).toHaveBeenLastCalledWith(JSON.stringify({ type: 'PAUSE_STREAM' }))
+      expect(stream!.logs.value.map((log) => [log.content, log.offset])).toEqual([
+        ['l1', 90],
+        ['l2a', 94],
+        ['l3', 97],
+        ['l4', 100],
+      ])
+      expect(stream!.currentWsOffset.value).toBe(100)
+      expect(lines).toEqual(['l1', 'l2a'])
+
+      // Pausado: chunks que ainda chegarem são descartados.
+      await logChunk(ws, 'l5\n', 103)
+      expect(stream!.logs.value).toHaveLength(4)
+    })
+
+    it('Rewind fica indisponível com o buffer no início do arquivo', async () => {
+      const ws = await mountWithPageLines(2)
+      expect(stream!.canRewind.value).toBe(false)
+
+      stream!.selectTarget(app)
+      await logChunk(ws, 'a\nb\n', 4)
+
+      expect(stream!.canRewind.value).toBe(false)
+      ws.send.mockClear()
+      stream!.rewind()
+      expect(ws.send).not.toHaveBeenCalled()
+    })
+
+    it('Rewind acima do teto de 2000 linhas descarta as mais novas e recua o offset', async () => {
+      const ws = await mountWithPageLines(2)
+      // 2000 linhas de 2 bytes ('x\n') a partir do byte 10; o buffer fica cheio.
+      stream!.selectTarget(app)
+      stream!.fastForward()
+      await logChunk(ws, `\n${'x\n'.repeat(2000)}`, 4010)
+      await streamEnd(ws)
+      // pageLines=2 corta a cauda; reabastece o buffer até o teto com um chunk ao vivo.
+      await logChunk(ws, 'x\n'.repeat(1998), 4010 + 1998 * 2)
+      expect(stream!.logs.value).toHaveLength(2000)
+      const start = stream!.logs.value[0]!.offset - 2
+
+      stream!.rewind()
+      const pageStart = start - 2 * 2 * 2
+      await logChunk(ws, 'y\nz\nw\nq\n', pageStart + 8)
+
+      expect(stream!.logs.value).toHaveLength(2000)
+      expect(stream!.logs.value.slice(0, 2).map((log) => log.content)).toEqual(['w', 'q'])
+      expect(stream!.currentWsOffset.value).toBe(stream!.logs.value[1999]!.offset)
+      expect(stream!.currentWsOffset.value).toBe(4010 + 1998 * 2 - 4)
+    })
   })
 })

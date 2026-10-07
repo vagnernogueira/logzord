@@ -35,6 +35,7 @@ COPY --from=backend-deps /app/backend/node_modules ./node_modules
 COPY backend/package*.json ./
 COPY backend/src ./src
 COPY backend/targets.json ./targets.json
+COPY backend/config.json ./config.json
 
 COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html
 

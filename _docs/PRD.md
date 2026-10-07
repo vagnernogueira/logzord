@@ -23,6 +23,9 @@ Analistas de suporte e desenvolvedores precisam monitorar logs em tempo real em 
 * **CA 5 - Compressão de Saída:** Arquivos de download > 5MB devem ser entregues em formato .zip ou .gz, sem limite de tamanho máximo para o processo de compressão.
   * Download do log: `GET /api/targets/:id/download` comprime no servidor (`.gz` por stream) acima de 5MB. Export do Quadro de Análise: `useRecording.ts::exportRecord` comprime no cliente (`CompressionStream`) acima de 5MB.
 
+## Notas de Implementação
+* **História 5 — Rewind/Fast Forward:** navegação por byte offset em páginas de `pageLines` linhas (`backend/config.json`, default 50 ≈ uma tela). Rewind carrega a página anterior ao buffer e pausa; Fast Forward vai para a cauda do arquivo e segue ao vivo. Detalhes em `_docs/ARCHITECTURE.md` §7.1.
+
 ## Fora do Escopo 🚫
 * Telas de cadastro de paths ou servidores.
 * Persistência de longo prazo do Quadro de Análise (limpo após fechar a sessão).
