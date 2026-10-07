@@ -27,7 +27,10 @@ O visual é a casca `@vagnernogueira/vsshellcode` (estilo VS Code); a fonte de v
 
 - Por pacote alterado, nesta ordem: `npm --workspace=<frontend|backend> run lint`, depois `run test`; ao fim, `npm --workspace=frontend run build` para mudanças de frontend.
 - Imagem: `make build` valida que builda, sem subi-la.
-- Verificar por build, lint e testes. Para o teste final de UX, o ambiente dispõe de Playwright CLI (`npx playwright`) e Chrome headless (browsers em `~/.cache/ms-playwright`).
+- Verificar por build, lint e testes. Para o teste final de UX, use o Playwright instalado globalmente no SO (`playwright@1.63.0` via `npm i -g`, Node do nvm) e o Chromium headless correspondente (`chromium_headless_shell-1243` em `~/.cache/ms-playwright`):
+  - O projeto não declara Playwright como dependência, então `npx playwright` resolve para o pacote global.
+  - Script Node avulso que faz `require('playwright')`: rodar com `NODE_PATH="$(npm root -g)" node <script>`, guardando o script fora do repo, e chamar `chromium.launch()` sem `executablePath`.
+  - Ao atualizar o pacote global, rodar `playwright install chromium` em seguida, porque cada versão do Playwright exige uma build de browser específica.
 - Trabalhar em etapas quando a demanda for multi-fase.
 
 ## Deploy local
