@@ -78,7 +78,8 @@ frontend/src/
 - `useRecording` encapsula a persistência local via Dexie/IndexedDB e expõe `isRecording`, `recordedCount`, `toggleRecord`, `recordLine`, `clearRecord` e `exportRecord`.
 - `App.vue` compõe a casca com `ShellTitleBar`, `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellStatusBar` e `ShellCommandPalette`, todos de `@vagnernogueira/vsshellcode/vue`, e registra atalhos com `useShellKeybindings`. `ShellPanel` não é usado: o painel inferior foi removido da UI (`togglePanel` em `App.vue` é um stub exigido por `useShellKeybindings`).
 - `views.config.ts` declara as views `TargetsSection` (id `targets`, título "Logs") e `AnalysisSection` (id `analysis`); a `ShellActivityBar` seleciona a view ativa e `ShellSidebar` renderiza o componente correspondente com as props de `ViewPropsContext`.
-- Cada target selecionado abre uma aba em `ShellTabs` (`openTargetIds`); fechar a aba ativa seleciona a última restante, e a última aba não fecha.
+- Cada target selecionado abre uma aba em `ShellTabs` (`openTargetIds`); fechar a aba ativa seleciona a última restante, e fechar a última aba limpa a seleção (`clearTarget`).
+- Estado por aba em `useLogStream.ts`: play, filtro, logs e offset de retomada. Voltar a uma aba continua do offset salvo, sem reler o arquivo nem regravar no Record; fechar a aba descarta esse estado (`forgetTarget`).
 - `commands.config.ts` alimenta a `ShellCommandPalette`; `App.vue` mapeia cada id de comando para um handler (`commandHandlers`).
 - `LogEntry` e os tipos da árvore (`LogTreeNode`, `LogTreeTarget`, `LogRotation`) ficam em `frontend/src/types/index.ts`.
 

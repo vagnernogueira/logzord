@@ -368,4 +368,20 @@ describe('App', () => {
     expect(state.forgetTarget).toHaveBeenCalledWith('app')
     expect(recording.forgetTarget).toHaveBeenCalledWith('app')
   })
+
+  it('ao fechar a aba ativa, troca para a aba restante antes de descartar o estado da fechada', async () => {
+    const state = createLogStreamState()
+    useLogStreamMock.mockReturnValue(state)
+    const wrapper = mountApp()
+    const targetButtons = wrapper.findAll('aside button')
+
+    await targetButtons[0]!.trigger('click')
+    await targetButtons[1]!.trigger('click')
+    await wrapper.findAll('.tab__close')[1]!.trigger('click')
+
+    const fallbackCall = state.selectTarget.mock.invocationCallOrder.at(-1)!
+    expect(state.selectTarget).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'app' }))
+    expect(state.forgetTarget).toHaveBeenCalledWith('worker')
+    expect(state.forgetTarget.mock.invocationCallOrder[0]).toBeGreaterThan(fallbackCall)
+  })
 })

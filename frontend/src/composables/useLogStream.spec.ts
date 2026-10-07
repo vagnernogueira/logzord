@@ -279,4 +279,51 @@ describe('useLogStream', () => {
       ['próxima', 16],
     ])
   })
+
+  it('voltar a uma aba preserva logs e retoma do offset salvo', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+    const lines: string[] = []
+    stream!.setOnLogEntry((line) => lines.push(line))
+    const app = { type: 'target' as const, id: 'app', label: 'App' }
+    const worker = { type: 'target' as const, id: 'worker', label: 'Worker' }
+
+    stream!.selectTarget(app)
+    await logChunk(ws, 'linha app\n', 10)
+
+    stream!.selectTarget(worker)
+    expect(stream!.logs.value).toEqual([])
+    expect(stream!.currentWsOffset.value).toBe(0)
+    await logChunk(ws, 'linha worker\n', 13)
+
+    stream!.selectTarget(app)
+    expect(stream!.logs.value.map((log) => log.content)).toEqual(['linha app'])
+    expect(stream!.currentWsOffset.value).toBe(10)
+    expect(ws.send).toHaveBeenLastCalledWith(
+      JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 10 }),
+    )
+    expect(lines).toEqual(['linha app', 'linha worker'])
+
+    stream!.selectTarget(worker)
+    expect(stream!.logs.value.map((log) => log.content)).toEqual(['linha worker'])
+    expect(stream!.currentWsOffset.value).toBe(13)
+  })
+
+  it('forgetTarget descarta logs e offset da aba', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+    const app = { type: 'target' as const, id: 'app', label: 'App' }
+    const worker = { type: 'target' as const, id: 'worker', label: 'Worker' }
+
+    stream!.selectTarget(app)
+    await logChunk(ws, 'linha app\n', 10)
+    stream!.selectTarget(worker)
+    stream!.forgetTarget('app')
+    stream!.selectTarget(app)
+
+    expect(stream!.logs.value).toEqual([])
+    expect(stream!.currentWsOffset.value).toBe(0)
+  })
 })

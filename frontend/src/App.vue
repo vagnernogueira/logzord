@@ -109,8 +109,6 @@ function addTargetRotation(target: LogTreeTarget, rotation: LogRotation) {
 function closeTab(id: string) {
   const closingActive = selectedTarget.value?.id === id
   openTargetIds.value = openTargetIds.value.filter((tabId) => tabId !== id)
-  forgetPlayState(id)
-  forgetRecordState(id)
 
   if (closingActive) {
     const fallbackId = openTargetIds.value[openTargetIds.value.length - 1]
@@ -118,6 +116,9 @@ function closeTab(id: string) {
     if (fallback) selectTarget(fallback)
     else clearTarget()
   }
+  // Depois da troca: selectTarget guarda o estado da aba que deixa o foco, e a aba fechada não deve sobrar.
+  forgetPlayState(id)
+  forgetRecordState(id)
 }
 
 function toggleSidebar() {

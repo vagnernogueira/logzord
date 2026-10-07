@@ -62,6 +62,8 @@ export function useLogStream() {
   const playStateByTarget = new Map<string, boolean>()
   // Filtro por aba: editar o campo altera só o filtro da aba em foco.
   const filterByTarget = new Map<string, string>()
+  // Logs e offset por aba: voltar a uma aba retoma de onde parou, sem reler o arquivo nem regravar no Record.
+  const streamByTarget = new Map<string, { logs: LogEntry[], offset: number }>()
 
   watch(filterText, (value) => {
     if (selectedTarget.value) {
@@ -125,10 +127,14 @@ export function useLogStream() {
     if (isPlaying.value) {
       stopStream()
     }
+    if (selectedTarget.value) {
+      streamByTarget.set(selectedTarget.value.id, { logs: logs.value, offset: currentWsOffset.value })
+    }
+    const saved = streamByTarget.get(target.id)
     selectedTarget.value = target
     filterText.value = filterByTarget.get(target.id) ?? ''
-    logs.value = []
-    currentWsOffset.value = 0
+    logs.value = saved?.logs ?? []
+    currentWsOffset.value = saved?.offset ?? 0
     availableRotations.value = []
     setPlaying(playStateByTarget.get(target.id) ?? true)
     if (isPlaying.value) {
@@ -139,6 +145,7 @@ export function useLogStream() {
   function forgetTarget(id: string) {
     playStateByTarget.delete(id)
     filterByTarget.delete(id)
+    streamByTarget.delete(id)
   }
 
   function clearTarget() {
