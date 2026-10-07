@@ -26,6 +26,12 @@ class FakeWebSocket {
 
 let stream: ReturnType<typeof useLogStream> | null = null
 
+function logChunk(ws: FakeWebSocket, content: string, offset: number) {
+  return ws.onmessage?.(
+    new MessageEvent('message', { data: JSON.stringify({ type: 'LOG_CHUNK', content, offset }) }),
+  )
+}
+
 const TestHarness = defineComponent({
   name: 'TestHarness',
   setup() {
@@ -229,5 +235,48 @@ describe('useLogStream', () => {
     await ws.onmessage?.(new MessageEvent('message', { data: JSON.stringify({ type: 'STREAM_END' }) }))
 
     expect(stream!.isPlaying.value).toBe(true)
+  })
+
+  it('junta a linha que atravessa a fronteira de chunk numa única entrada', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+    const lines: Array<[string, number]> = []
+    stream!.setOnLogEntry((line, offset) => lines.push([line, offset]))
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+
+    await logChunk(ws, 'linha 1\nlin', 11)
+    expect(stream!.logs.value.map((log) => log.content)).toEqual(['linha 1'])
+    expect(stream!.currentWsOffset.value).toBe(8)
+
+    await logChunk(ws, 'ha 2\n', 16)
+    expect(stream!.logs.value.map((log) => [log.content, log.offset])).toEqual([
+      ['linha 1', 8],
+      ['linha 2', 16],
+    ])
+    expect(lines).toEqual([['linha 1', 8], ['linha 2', 16]])
+    expect(stream!.currentWsOffset.value).toBe(16)
+  })
+
+  it('pausar no meio de uma linha retoma do fim da última linha completa', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+
+    // 'ação\n' ocupa 7 bytes em UTF-8; o fragmento 'próx' (5 bytes) fica pendente.
+    await logChunk(ws, 'ação\npróx', 12)
+    stream!.togglePlay()
+    stream!.togglePlay()
+
+    expect(ws.send).toHaveBeenLastCalledWith(
+      JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 7 }),
+    )
+
+    await logChunk(ws, 'próxima\n', 16)
+    expect(stream!.logs.value.map((log) => [log.content, log.offset])).toEqual([
+      ['ação', 7],
+      ['próxima', 16],
+    ])
   })
 })

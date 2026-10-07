@@ -17,6 +17,7 @@ O acompanhamento de arquivo em crescimento (tail) é feito por polling: quando o
 
 - **Precisão depende do offset armazenado no frontend.** Se o frontend perder ou calcular errado o offset acumulado, a retomada gera lacuna (offset adiantado) ou duplicação de linhas (offset atrasado) — ver limitação já registrada em `_docs/ARCHITECTURE.md` §7.3.
 - **Truncamento do arquivo é tratado defensivamente:** se `stats.size < currentOffset` (rotação/truncamento do log), o servidor realinha `currentOffset` para `stats.size` antes de continuar, evitando erro de leitura fora do arquivo.
+- **Linha cortada por chunk é resolvida no cliente:** o frontend bufferiza o fragmento final sem `\n` e retoma do byte final da última linha completa, sem mudar o protocolo — ver `_docs/ARCHITECTURE.md` §7.3.
 - **Escolha de offset em bytes, não linha**, foi necessária porque o protocolo de streaming (`LOG_CHUNK`) trafega chunks de texto arbitrários, não linhas delimitadas — a contagem por byte é a unidade que o `ReadStream` do Node entende nativamente via `start`/`end`.
 
 ## Alternativas consideradas

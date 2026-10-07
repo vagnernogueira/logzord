@@ -32,6 +32,12 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+const utf8 = new TextEncoder()
+
+function byteLength(value: string): number {
+  return utf8.encode(value).length
+}
+
 export function useLogStream() {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws'
@@ -50,6 +56,8 @@ export function useLogStream() {
   let onLogEntry: ((line: string, offset: number) => void) | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let shouldReconnect = true
+  // Fragmento final de LOG_CHUNK ainda sem '\n': só vira linha quando o restante chegar (CA2).
+  let pendingLine = ''
   // Estado de play por aba: os controles comandam só a aba em foco; aba sem estado prévio abre tocando.
   const playStateByTarget = new Map<string, boolean>()
   // Filtro por aba: editar o campo altera só o filtro da aba em foco.
@@ -140,6 +148,7 @@ export function useLogStream() {
     }
     selectedTarget.value = null
     filterText.value = ''
+    pendingLine = ''
     logs.value = []
     currentWsOffset.value = 0
     availableRotations.value = []
@@ -210,13 +219,18 @@ export function useLogStream() {
       const data = JSON.parse(event.data)
 
       if (data.type === 'LOG_CHUNK') {
-        const lines = data.content.split('\n')
-        for (const line of lines) {
+        const text = pendingLine + data.content
+        const parts = text.split('\n')
+        pendingLine = parts.pop() ?? ''
+        // data.offset é o byte final do chunk; o início do texto acumulado é derivado dele.
+        let lineEndOffset = data.offset - byteLength(text)
+        for (const line of parts) {
+          lineEndOffset += byteLength(line) + 1
           if (!line.trim()) continue
 
           const logEntry: LogEntry = {
             id: Math.random().toString(36).substring(7),
-            offset: data.offset,
+            offset: lineEndOffset,
             content: line,
           }
           logs.value.push(logEntry)
@@ -226,10 +240,11 @@ export function useLogStream() {
           }
 
           if (onLogEntry) {
-            onLogEntry(line, data.offset)
+            onLogEntry(line, lineEndOffset)
           }
         }
-        currentWsOffset.value = data.offset
+        // A retomada parte do fim da última linha completa: o fragmento pendente é relido do servidor.
+        currentWsOffset.value = data.offset - byteLength(pendingLine)
         // O scroll-smooth foi removido de propósito: cada LOG_CHUNK reiniciava a animação suave.
         // Esperamos o nextTick porque o #log-container só recebe o novo conteúdo depois do patch do DOM do Vue.
         await nextTick()
@@ -257,6 +272,8 @@ export function useLogStream() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     if (!selectedTarget.value) return
 
+    // O servidor reenvia a partir de currentWsOffset, que exclui o fragmento pendente.
+    pendingLine = ''
     ws.send(JSON.stringify({
       type: 'START_STREAM',
       targetId: selectedTarget.value.id,

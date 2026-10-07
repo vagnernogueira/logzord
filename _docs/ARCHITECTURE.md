@@ -168,6 +168,7 @@ _docs/
 ### 7.3 Limitações conhecidas (resumo)
 
 - Retomada de stream requer armazenamento preciso do byte offset pelo frontend; imprecisão resulta em lacuna ou sobreposição de logs.
+- Integridade por linha (CA2): `LOG_CHUNK` traz texto arbitrário; `useLogStream.ts` retém o fragmento final sem `\n` e só emite linhas completas. O offset de retomada (`currentWsOffset`) aponta para o fim da última linha completa, e o fragmento pendente é descartado a cada `START_STREAM` para ser relido do servidor. Consequência: uma última linha sem `\n` final não é exibida até o escritor completá-la.
 
 ### 7.4 Logs de teste locais
 
