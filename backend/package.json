@@ -1,6 +1,6 @@
 {
   "name": "logzord-backend",
-  "version": "1.2.19",
+  "version": "1.2.20",
   "description": "Logzord Backend",
   "main": "src/index.js",
   "type": "module",
