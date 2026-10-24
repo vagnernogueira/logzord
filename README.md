@@ -30,7 +30,7 @@ O Logzord é uma SPA Vue 3 com backend Node.js que permite monitorar arquivos de
 
 ### Pré-requisitos
 
-- Node.js 18+
+- Node.js 24+
 - Podman ou Docker com Compose
 
 ### GitHub Packages

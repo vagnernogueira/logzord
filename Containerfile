@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # Estágio 1: build da aplicação Vue.js/Vite
-FROM docker.io/node:20-alpine AS frontend-builder
+FROM docker.io/node:24-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 ARG VITE_API_URL
@@ -20,7 +20,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Estágio 2: dependências do backend Node.js
-FROM docker.io/node:20-alpine AS backend-deps
+FROM docker.io/node:24-alpine AS backend-deps
 WORKDIR /app/backend
 
 COPY backend/package*.json ./
@@ -28,7 +28,7 @@ RUN npm install
 
 # Estágio 3: imagem final — Nginx (estático + proxy reverso) e Node (API/WS) sob supervisord
 FROM docker.io/nginx:alpine
-RUN apk add --no-cache nodejs supervisor
+RUN apk add --no-cache 'nodejs>=24.22.1' supervisor
 
 WORKDIR /app
 COPY --from=backend-deps /app/backend/node_modules ./node_modules
