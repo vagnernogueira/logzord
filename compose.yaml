@@ -11,7 +11,8 @@ services:
     #   dockerfile: Containerfile
     container_name: logzord
     ports:
-      - "3001:3001"
+      # Só loopback: o acesso externo passa pelo Caddy (logzord.vagnernogueira.com).
+      - "127.0.0.1:3001:3001"
     volumes:
       # Montagem dos arquivos de targets e config e do diretório de logs para leitura (ro = read-only)
       - ./backend/targets.json:/app/targets.json:ro
