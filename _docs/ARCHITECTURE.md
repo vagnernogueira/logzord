@@ -168,6 +168,7 @@ _docs/
 - **Shell oficial:** o visual do Logzord é a casca `@vagnernogueira/vsshellcode` (estilo VS Code), adotada em substituição ao layout próprio anterior (`AppSidebar`, `LogToolbar`, `StatusBar`). Consumir o pacote como dependência do frontend, em vez de copiar CSS ou manter componentes shell ad-hoc; novos elementos de UI entram como view da sidebar (`views.config.ts`), slot da title bar, item da status bar ou comando da palette.
 - **Fonte de cor:** manter o tema VS Code do shell como fonte única e derivar os tokens Tailwind/shadcn por bridging VS Code → Tailwind.
 - **Persistência do Quadro de Análise:** o Quadro (`LogzordAnalysisDB`) persiste no IndexedDB do browser, é compartilhado entre as abas da mesma origem e só zera pelo botão Limpar ou pela limpeza dos dados do site (decisão de produto, issue #22). `recordedCount` vem de `liveQuery` do Dexie, que reemite a contagem a cada escrita, inclusive de outra aba. Não se chama `navigator.storage.persist()`: evita o prompt de permissão do Firefox, ao custo de o storage ser *best-effort* (ver §7.3).
+- **Buffer de logs:** até 2000 linhas por aba em `shallowRef`, substituído inteiro uma vez por `LOG_CHUNK` (entradas imutáveis; mutar no lugar não dispara reatividade). Sem virtualização: a medição da issue #24 mostrou que o custo vinha do `push`+`shift` por linha no array reativo (O(n) por linha com o buffer cheio), não do DOM.
 - **Branch piloto:** `pilot/vsshellcode-integration` permanece local-only e superseded pela adoção do pacote; após o merge, seu descarte depende da decisão do humano e não é executado por esta sessão.
 
 ### 7.3 Limitações conhecidas (resumo)
@@ -267,3 +268,8 @@ _docs/
   - **Data:** 2026-11-07
   - **Autor:** IA
   - **Mudanças:** Pendências da auditoria (issue #22). Remoção do módulo morto `db/index.ts` (`LogzordDB`, nunca importado) e alinhamento do §3.1: `useRecording.ts` cria o próprio Dexie. Filtro com modo regex alternável (`lib/lineMatcher.ts`), substituindo o placeholder `/regex/` enganoso. Quadro de Análise assumido como persistente por browser (PRD ajustado), com `recordedCount` via `liveQuery` sincronizado entre abas e o despejo *best-effort* registrado em §7.3.
+
+- **Versão 1.9**
+  - **Data:** 2026-11-07
+  - **Autor:** IA
+  - **Mudanças:** Pendências condicionais (issue #24). Buffer de logs em `shallowRef` com uma atribuição por chunk, eliminando o O(n) por linha medido com o buffer cheio; virtualização descartada (§7.2).

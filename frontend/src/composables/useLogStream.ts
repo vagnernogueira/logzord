@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
 import { findTargetById } from '@/lib/logTree'
 import { makeLineMatcher, type FilterMode } from '@/lib/lineMatcher'
@@ -88,7 +88,8 @@ export function useLogStream() {
   const tree = ref<LogTreeNode[]>([])
   const selectedTarget = ref<LogTreeTarget | null>(null)
   const isPlaying = ref(false)
-  const logs = ref<LogEntry[]>([])
+  // shallowRef: entradas são imutáveis e toda escrita substitui o array inteiro; mutar no lugar não dispara reatividade.
+  const logs = shallowRef<LogEntry[]>([])
   const filterText = ref('')
   const filterMode = ref<FilterMode>('substring')
   const currentWsOffset = ref(0)
@@ -329,21 +330,18 @@ export function useLogStream() {
     }
   }
 
+  // Uma atribuição por chunk: push+shift por linha num array reativo custava O(n) por linha com o buffer cheio (#24).
   function appendLines(lines: ParsedLine[]) {
-    for (const line of lines) {
-      logs.value.push({
-        id: Math.random().toString(36).substring(7),
-        offset: line.offset,
-        content: line.content,
-      })
+    if (lines.length === 0) return
+    const entries = lines.map((line) => ({
+      id: Math.random().toString(36).substring(7),
+      offset: line.offset,
+      content: line.content,
+    }))
+    logs.value = [...logs.value, ...entries].slice(-MAX_LOG_ENTRIES)
 
-      if (logs.value.length > MAX_LOG_ENTRIES) {
-        logs.value.shift()
-      }
-
-      if (onLogEntry) {
-        onLogEntry(line.content, line.offset)
-      }
+    if (onLogEntry) {
+      for (const line of lines) onLogEntry(line.content, line.offset)
     }
   }
 

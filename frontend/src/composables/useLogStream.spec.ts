@@ -300,6 +300,26 @@ describe('useLogStream', () => {
     expect(stream!.currentWsOffset.value).toBe(16)
   })
 
+  it('com o buffer cheio mantém só as 2000 linhas mais novas e emite todas no onLogEntry', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+    let emitted = 0
+    stream!.setOnLogEntry(() => { emitted++ })
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+
+    const first = Array.from({ length: 1500 }, (_, i) => `a${i}\n`).join('')
+    await logChunk(ws, first, new TextEncoder().encode(first).length)
+    const second = Array.from({ length: 1000 }, (_, i) => `b${i}\n`).join('')
+    await logChunk(ws, second, new TextEncoder().encode(first + second).length)
+
+    const contents = stream!.logs.value.map((log) => log.content)
+    expect(contents).toHaveLength(2000)
+    expect(contents[0]).toBe('a500')
+    expect(contents[1999]).toBe('b999')
+    expect(emitted).toBe(2500)
+  })
+
   it('pausar no meio de uma linha retoma do fim da última linha completa', async () => {
     mount(TestHarness, { attachTo: document.body })
     await flushPromises()
