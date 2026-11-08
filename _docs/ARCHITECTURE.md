@@ -60,8 +60,6 @@ frontend/src/
 │   ├── useLogStream.ts
 │   ├── useLogStream.spec.ts
 │   └── useRecording.ts
-├── db/
-│   └── index.ts
 ├── lib/
 │   ├── logTree.ts
 │   └── utils.ts
@@ -69,7 +67,7 @@ frontend/src/
     └── index.ts
 ```
 
-`db/index.ts` inicializa o Dexie/IndexedDB consumido por `useRecording.ts`. `lib/utils.ts` concentra helpers dos componentes `ui/` (padrão `shadcn-vue`); `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
+`useRecording.ts` cria o próprio Dexie/IndexedDB (`LogzordAnalysisDB`, tabela `recordedLogs`). `lib/utils.ts` concentra helpers dos componentes `ui/` (padrão `shadcn-vue`); `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
 
 ### 3.2 Fluxo de dados
 
@@ -260,3 +258,8 @@ _docs/
   - **Data:** 2026-09-30
   - **Autor:** IA
   - **Mudanças:** Revisão para refletir a adoção do `vsshellcode` como visual. Remoção de `LogToolbar`/`ShellPanel` (inexistentes no código), inclusão do `ShellTitleBar` (filtro, play, record), do `lib/logTree.ts`, das abas por target, da árvore hierárquica com rotações e do endpoint `/api/targets/:id/rotations`; versão do pacote atualizada para `^1.1.8`; Onda 8 registrada no histórico.
+
+- **Versão 1.8**
+  - **Data:** 2026-11-07
+  - **Autor:** IA
+  - **Mudanças:** Pendências da auditoria (issue #22). Remoção do módulo morto `db/index.ts` (`LogzordDB`, nunca importado) e alinhamento do §3.1: `useRecording.ts` cria o próprio Dexie.
