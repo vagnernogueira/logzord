@@ -1,6 +1,6 @@
 {
   "name": "logzord-frontend",
-  "version": "1.2.25",
+  "version": "1.2.26",
   "type": "module",
   "scripts": {
     "dev": "vite",
