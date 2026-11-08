@@ -105,6 +105,18 @@ function activateTab(id: string) {
   if (target) selectTarget(target)
 }
 
+// Abaixo deste breakpoint (Tailwind `sm`) a sidebar de 260px espreme o log; ver issue #27.
+const NARROW_VIEWPORT_QUERY = '(max-width: 639px)'
+
+function isNarrowViewport() {
+  return window.matchMedia?.(NARROW_VIEWPORT_QUERY).matches ?? false
+}
+
+function selectTargetFromSidebar(target: LogTreeTarget) {
+  selectTarget(target)
+  if (isNarrowViewport()) toggleSidebar()
+}
+
 function requestRotations(target: LogTreeTarget) {
   void fetchRotationsFor(target)
 }
@@ -198,7 +210,7 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
       </template>
 
       <template #search>
-        <div class="relative w-72">
+        <div class="relative w-72 max-sm:w-full">
           <Input
             :model-value="filterText"
             type="text"
@@ -359,7 +371,7 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
         <component
           :is="activeView.component"
           v-bind="activeViewProps"
-          @select-target="selectTarget"
+          @select-target="selectTargetFromSidebar"
           @request-rotations="requestRotations"
           @add-rotation="addTargetRotation"
           @export-record="exportRecord"
@@ -423,6 +435,22 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
 .pulse-ring {
   box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
   animation: pulse-ring 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+/* Issue #27: em telas estreitas o campo de busca sai do centro absoluto e encolhe
+   no fluxo da title bar, sem cobrir os controles de streaming. */
+@media (max-width: 639px) {
+  .title-bar__search {
+    position: static;
+    transform: none;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .title-bar__actions {
+    gap: 4px;
+    padding: 0 4px;
+  }
 }
 
 @keyframes pulse-ring {

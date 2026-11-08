@@ -323,6 +323,33 @@ describe('App', () => {
     expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeDefined()
   })
 
+  it('em viewport estreita, colapsa a sidebar ao selecionar um alvo', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })))
+    try {
+      const wrapper = mountApp()
+
+      await wrapper.findAll('aside button')[0]!.trigger('click')
+
+      expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeDefined()
+      expect(wrapper.find('.tabs .tab').text()).toContain('Application log')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('em viewport larga, mantém a sidebar aberta ao selecionar um alvo', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })))
+    try {
+      const wrapper = mountApp()
+
+      await wrapper.findAll('aside button')[0]!.trigger('click')
+
+      expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeUndefined()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('compõe tabs abertas, troca a tab ativa e fecha a tab ativa', async () => {
     const wrapper = mountApp()
     const targetButtons = wrapper.findAll('aside button')
