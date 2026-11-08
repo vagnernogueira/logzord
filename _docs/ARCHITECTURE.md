@@ -74,7 +74,7 @@ frontend/src/
 
 - `App.vue` instancia `useLogStream()` e `useRecording()` e conecta os dois por meio de `setOnLogEntry(...)`.
 - `useLogStream` busca a árvore de targets `tree` (`GET /api/targets`) e as rotações sob demanda (`GET /api/targets/:id/rotations`), baixa o log da aba em foco (`downloadLog` → `GET /api/targets/:id/download`, que o backend entrega como anexo e comprime em `.gz` por stream acima de 5MB — CA5), mantém `selectedTarget`, `isPlaying`, `filterText`, `filteredLogs` e `currentWsOffset`, e controla o WebSocket. Também lê `pageLines` de `GET /api/config` e implementa a navegação da história 5 (`rewind`, `fastForward`; ver §7.1).
-- `useRecording` encapsula a persistência local via Dexie/IndexedDB e expõe `isRecording`, `recordedCount`, `toggleRecord`, `recordLine`, `clearRecord` e `exportRecord` (`.txt`, ou `.txt.gz` via `CompressionStream` nativo acima de 5MB — CA5; `lib/gzip.ts`).
+- `useRecording` encapsula a persistência local via Dexie/IndexedDB (Quadro compartilhado entre abas; `recordedCount` via `liveQuery`) e expõe `isRecording`, `recordedCount`, `toggleRecord`, `recordLine`, `clearRecord` e `exportRecord` (`.txt`, ou `.txt.gz` via `CompressionStream` nativo acima de 5MB — CA5; `lib/gzip.ts`).
 - `App.vue` compõe a casca com `ShellTitleBar`, `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellStatusBar` e `ShellCommandPalette`, todos de `@vagnernogueira/vsshellcode/vue`, e registra atalhos com `useShellKeybindings`. `ShellPanel` não é usado: o painel inferior foi removido da UI (`togglePanel` em `App.vue` é um stub exigido por `useShellKeybindings`).
 - `views.config.ts` declara as views `TargetsSection` (id `targets`, título "Logs") e `AnalysisSection` (id `analysis`); a `ShellActivityBar` seleciona a view ativa e `ShellSidebar` renderiza o componente correspondente com as props de `ViewPropsContext`.
 - Cada target selecionado abre uma aba em `ShellTabs` (`openTargetIds`); fechar a aba ativa seleciona a última restante, e fechar a última aba limpa a seleção (`clearTarget`).
@@ -167,6 +167,7 @@ _docs/
 - [ADR-001 — Estratégia de Retomada de Stream (Pausa/Play)](./decisoes/ADR-001-resume-offset.md)
 - **Shell oficial:** o visual do Logzord é a casca `@vagnernogueira/vsshellcode` (estilo VS Code), adotada em substituição ao layout próprio anterior (`AppSidebar`, `LogToolbar`, `StatusBar`). Consumir o pacote como dependência do frontend, em vez de copiar CSS ou manter componentes shell ad-hoc; novos elementos de UI entram como view da sidebar (`views.config.ts`), slot da title bar, item da status bar ou comando da palette.
 - **Fonte de cor:** manter o tema VS Code do shell como fonte única e derivar os tokens Tailwind/shadcn por bridging VS Code → Tailwind.
+- **Persistência do Quadro de Análise:** o Quadro (`LogzordAnalysisDB`) persiste no IndexedDB do browser, é compartilhado entre as abas da mesma origem e só zera pelo botão Limpar ou pela limpeza dos dados do site (decisão de produto, issue #22). `recordedCount` vem de `liveQuery` do Dexie, que reemite a contagem a cada escrita, inclusive de outra aba. Não se chama `navigator.storage.persist()`: evita o prompt de permissão do Firefox, ao custo de o storage ser *best-effort* (ver §7.3).
 - **Branch piloto:** `pilot/vsshellcode-integration` permanece local-only e superseded pela adoção do pacote; após o merge, seu descarte depende da decisão do humano e não é executado por esta sessão.
 
 ### 7.3 Limitações conhecidas (resumo)
@@ -174,6 +175,7 @@ _docs/
 - `LOG_CHUNK` não carrega `targetId`: um chunk em voo de outra aba só é aceito se, por coincidência, cobrir exatamente o byte esperado da aba atual. No Fast Forward, um chunk em voo que salte além do byte esperado (fragmento pendente no momento do clique) pode ser lido como o salto; um novo Play/Fast Forward recupera. Eliminar de vez exige identificar o stream no protocolo.
 - Retomada de stream requer armazenamento preciso do byte offset pelo frontend; imprecisão resulta em lacuna ou sobreposição de logs.
 - Integridade por linha (CA2): `LOG_CHUNK` traz texto arbitrário; `useLogStream.ts` retém o fragmento final sem `\n` e só emite linhas completas. O offset de retomada (`currentWsOffset`) aponta para o fim da última linha completa; num novo `START_STREAM` da mesma aba o servidor relê o fragmento pendente e o cliente recorta a parte já recebida (guarda de continuidade, §7.1). Ao trocar de aba o fragmento é descartado. Consequência: uma última linha sem `\n` final não é exibida até o escritor completá-la.
+- Quadro de Análise *best-effort*: sem `navigator.storage.persist()`, o browser pode despejar o IndexedDB sob pressão de armazenamento, e o WebKit/Safari o apaga pelo ITP após ~7 dias sem interação. Em aba anônima, some ao fechar a janela.
 
 ### 7.4 Logs de teste locais
 
@@ -264,4 +266,4 @@ _docs/
 - **Versão 1.8**
   - **Data:** 2026-11-07
   - **Autor:** IA
-  - **Mudanças:** Pendências da auditoria (issue #22). Remoção do módulo morto `db/index.ts` (`LogzordDB`, nunca importado) e alinhamento do §3.1: `useRecording.ts` cria o próprio Dexie. Filtro com modo regex alternável (`lib/lineMatcher.ts`), substituindo o placeholder `/regex/` enganoso.
+  - **Mudanças:** Pendências da auditoria (issue #22). Remoção do módulo morto `db/index.ts` (`LogzordDB`, nunca importado) e alinhamento do §3.1: `useRecording.ts` cria o próprio Dexie. Filtro com modo regex alternável (`lib/lineMatcher.ts`), substituindo o placeholder `/regex/` enganoso. Quadro de Análise assumido como persistente por browser (PRD ajustado), com `recordedCount` via `liveQuery` sincronizado entre abas e o despejo *best-effort* registrado em §7.3.

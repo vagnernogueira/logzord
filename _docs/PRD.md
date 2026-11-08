@@ -12,13 +12,13 @@ Analistas de suporte e desenvolvedores precisam monitorar logs em tempo real em 
 2.  **Controle de Reprodução (P0):** Como analista, quero pausar o stream para ler uma linha e retomar exatamente de onde parei ao dar "Play".
 3.  **Filtro Dinâmico (P0):** Como analista, quero filtrar o texto (ex: "ORA-") para ocultar linhas irrelevantes, mantendo o foco apenas nos dados de interesse sem perder o contexto na memória.
 4.  **Seleção de Alvo (P1):** Como analista, quero escolher o serviço e o arquivo de log através de uma barra lateral intuitiva.
-5.  **Navegação e Gravação (P1):** Como analista, quero navegar no tempo (Rewind/Fast Forward) e usar um botão "Record" 🔴 para salvar linhas filtradas em um quadro de análise temporário.
+5.  **Navegação e Gravação (P1):** Como analista, quero navegar no tempo (Rewind/Fast Forward) e usar um botão "Record" 🔴 para salvar linhas filtradas em um quadro de análise.
 6.  **Exportação de Evidência (P1):** Como analista, quero baixar o log ou o quadro de análise, recebendo-o compactado automaticamente se for maior que 5MB.
 
 ## Critérios de Aceitação ✅
 * **CA 1 - Configuração e Seleção:** A interface deve listar serviços e arquivos baseando-se estritamente em um arquivo JSON de configuração, sem interface de cadastro manual.
 * **CA 2 - Fluxo de Pausa Técnico:** Ao pausar, o sistema interrompe a leitura do arquivo; ao despausar, a leitura deve recomeçar da última **linha** processada para garantir integridade.
-* **CA 3 - Mecanismo de Record:** Enquanto o botão "Record" estiver ativo, cada linha renderizada (respeitando o filtro ativo) deve sofrer um *append* em um buffer temporário de análise.
+* **CA 3 - Mecanismo de Record:** Enquanto o botão "Record" estiver ativo, cada linha renderizada (respeitando o filtro ativo) deve sofrer um *append* no Quadro de Análise.
 * **CA 4 - Filtro Visual:** O filtro deve ocultar as linhas na tela, mas elas devem reaparecer instantaneamente caso o filtro seja removido (sem necessidade de reler o arquivo).
 * **CA 5 - Compressão de Saída:** Arquivos de download > 5MB devem ser entregues em formato .zip ou .gz, sem limite de tamanho máximo para o processo de compressão.
   * Download do log: `GET /api/targets/:id/download` comprime no servidor (`.gz` por stream) acima de 5MB. Export do Quadro de Análise: `useRecording.ts::exportRecord` comprime no cliente (`CompressionStream`) acima de 5MB.
@@ -26,9 +26,10 @@ Analistas de suporte e desenvolvedores precisam monitorar logs em tempo real em 
 ## Notas de Implementação
 * **História 5 — Rewind/Fast Forward:** navegação por byte offset em páginas de `pageLines` linhas (`backend/config.json`, default 50 ≈ uma tela). Rewind carrega a página anterior ao buffer e pausa; Fast Forward vai para a cauda do arquivo e segue ao vivo. Detalhes em `_docs/ARCHITECTURE.md` §7.1.
 
+* **Persistência do Quadro de Análise:** o Quadro persiste no IndexedDB do browser usado para acessar o Logzord, é compartilhado entre as abas e só zera pelo botão Limpar ou pela limpeza dos dados do site. O armazenamento é *best-effort*: o browser pode despejá-lo sob pressão de armazenamento (e o WebKit/Safari, pelo ITP, após ~7 dias sem interação). Detalhes em `_docs/ARCHITECTURE.md` §7.
+
 ## Fora do Escopo 🚫
 * Telas de cadastro de paths ou servidores.
-* Persistência de longo prazo do Quadro de Análise (limpo após fechar a sessão).
 * Funcionalidades de edição ou deleção de linhas no arquivo original de log.
 
 ## Refinamento 🧠

@@ -2,15 +2,32 @@ import { defineComponent, h, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { addMock, toArrayMock, gzipBlobMock } = vi.hoisted(() => ({
-  addMock: vi.fn(),
-  toArrayMock: vi.fn(),
-  gzipBlobMock: vi.fn(async () => new Blob(['gz'], { type: 'application/gzip' })),
-}))
+const { addMock, toArrayMock, gzipBlobMock, liveQueryMock, liveCount } = vi.hoisted(() => {
+  // Observable mínimo: simula o liveQuery do Dexie, que reemite a contagem a cada escrita (de qualquer aba).
+  const liveCount = {
+    observers: new Set<{ next: (value: number) => void }>(),
+    emit(value: number) {
+      liveCount.observers.forEach(o => o.next(value))
+    },
+  }
+  return {
+    addMock: vi.fn(),
+    toArrayMock: vi.fn(),
+    gzipBlobMock: vi.fn(async () => new Blob(['gz'], { type: 'application/gzip' })),
+    liveCount,
+    liveQueryMock: vi.fn(() => ({
+      subscribe(observer: { next: (value: number) => void }) {
+        liveCount.observers.add(observer)
+        return { unsubscribe: () => liveCount.observers.delete(observer) }
+      },
+    })),
+  }
+})
 
 vi.mock('@/lib/gzip', () => ({ gzipBlob: gzipBlobMock }))
 
 vi.mock('dexie', () => ({
+  liveQuery: liveQueryMock,
   default: class {
     version() {
       return { stores: () => {} }
@@ -37,6 +54,7 @@ const TestHarness = defineComponent({
 describe('useRecording', () => {
   beforeEach(() => {
     addMock.mockReset()
+    liveCount.observers.clear()
     activeTargetId.value = null
   })
 
@@ -76,6 +94,26 @@ describe('useRecording', () => {
 
     expect(addMock).toHaveBeenCalledTimes(1)
     expect(addMock).toHaveBeenCalledWith({ content: 'ERROR falhou', offset: 2 })
+  })
+
+  it('recordedCount acompanha a contagem emitida pelo liveQuery, inclusive escritas de outra aba', () => {
+    mount(TestHarness)
+    expect(liveCount.observers.size).toBe(1)
+
+    liveCount.emit(3)
+    expect(recording!.recordedCount.value).toBe(3)
+
+    liveCount.emit(0)
+    expect(recording!.recordedCount.value).toBe(0)
+  })
+
+  it('cancela a observação da contagem ao desmontar', () => {
+    const wrapper = mount(TestHarness)
+    expect(liveCount.observers.size).toBe(1)
+
+    wrapper.unmount()
+
+    expect(liveCount.observers.size).toBe(0)
   })
 
   it('forgetTarget descarta o estado de gravação da aba', () => {

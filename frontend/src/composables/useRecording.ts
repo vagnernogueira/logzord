@@ -1,5 +1,5 @@
-import { ref, computed, onMounted, type Ref } from 'vue'
-import Dexie from 'dexie'
+import { ref, computed, onMounted, onUnmounted, type Ref } from 'vue'
+import Dexie, { liveQuery } from 'dexie'
 import { gzipBlob } from '@/lib/gzip'
 
 // CA5: exports acima de 5MB saem em .gz.
@@ -39,12 +39,10 @@ export function useRecording(activeTargetId: Ref<string | null>) {
       content: line,
       offset,
     })
-    recordedCount.value = await db.table('recordedLogs').count()
   }
 
   async function clearRecord() {
     await db.table('recordedLogs').clear()
-    recordedCount.value = 0
   }
 
   async function exportRecord() {
@@ -75,12 +73,20 @@ export function useRecording(activeTargetId: Ref<string | null>) {
     URL.revokeObjectURL(url)
   }
 
-  async function initCount() {
-    recordedCount.value = await db.table('recordedLogs').count()
-  }
+  // O Quadro persiste no IndexedDB do browser e é compartilhado entre abas: liveQuery reemite a contagem
+  // a cada escrita, inclusive as feitas por outra aba, e é a única fonte de recordedCount.
+  let countSubscription: { unsubscribe: () => void } | null = null
 
   onMounted(() => {
-    initCount()
+    countSubscription = liveQuery(() => db.table('recordedLogs').count()).subscribe({
+      next: (count) => { recordedCount.value = count },
+      error: (err) => console.error('Falha ao observar o Quadro de Análise:', err),
+    })
+  })
+
+  onUnmounted(() => {
+    countSubscription?.unsubscribe()
+    countSubscription = null
   })
 
   return {
