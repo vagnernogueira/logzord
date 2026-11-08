@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "LOGZORD_LOG_ROOT=.. node src/index.js",
+    "dev": "LOGZORD_LOG_ROOT=.. nodemon src/index.js",
     "test": "vitest run"
   },
   "dependencies": {

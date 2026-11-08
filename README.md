@@ -54,7 +54,7 @@ Execute os comandos a partir da raiz do repositório:
 npm install
 ```
 
-Configure os alvos de log em `backend/targets.json` e, opcionalmente, o tamanho da página de Rewind/Fast Forward em `backend/config.json` (`{ "pageLines": 50 }`, limite 1–2000; ausente ou inválido usa o default). Ambos são montados read-only no container pelo `compose.yaml` e relidos a cada request.
+Configure os alvos de log em `backend/targets.json` e, opcionalmente, o tamanho da página de Rewind/Fast Forward em `backend/config.json` (`{ "pageLines": 50 }`, limite 1–2000; ausente ou inválido usa o default). Ambos são montados read-only no container pelo `compose.yaml` e relidos a cada request. Caminhos relativos em `targets.json` são resolvidos a partir de `LOGZORD_LOG_ROOT`: no container o default é `/app` (onde o `compose.yaml` monta `wkr/`); fora dele, `npm run start:backend`/`dev:backend` definem a raiz do repo.
 
 ### Como Compilar
 

@@ -44,6 +44,24 @@ describe('GET /api/targets', () => {
 });
 
 describe('GET /api/targets/:id/rotations', () => {
+  it('resolves a relative target path against logRoot', async () => {
+    const testDir = fs.mkdtempSync(path.join(tempDir, 'log-root-'));
+    const targetsPath = path.join(testDir, 'targets.json');
+    const logRoot = path.join(testDir, 'root');
+    fs.mkdirSync(path.join(logRoot, 'wkr'), { recursive: true });
+    fs.writeFileSync(path.join(logRoot, 'wkr', 'sample.log'), 'current\n');
+    fs.writeFileSync(path.join(logRoot, 'wkr', 'sample.log.2026-08-21'), 'older\n');
+    fs.writeFileSync(
+      targetsPath,
+      JSON.stringify([{ type: 'target', id: 'sample', label: 'Sample', path: 'wkr/sample.log' }]),
+    );
+
+    const response = await request(createApp({ targetsPath, logRoot })).get('/api/targets/sample/rotations');
+
+    expect(response.status).toBe(200);
+    expect(response.body.map((rotation: { date: string }) => rotation.date)).toEqual(['2026-08-21']);
+  });
+
   it('lists rotated files matching the target basename', async () => {
     const testDir = fs.mkdtempSync(path.join(tempDir, 'rotations-'));
     const targetsPath = path.join(testDir, 'targets.json');

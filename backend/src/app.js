@@ -12,6 +12,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultTargetsPath = path.resolve(__dirname, '../targets.json');
 const defaultConfigPath = path.resolve(__dirname, '../config.json');
+// Base dos `path` relativos do targets.json. No container é /app (onde o compose monta wkr/);
+// fora dele, os scripts npm do backend apontam LOGZORD_LOG_ROOT para a raiz do repo.
+const defaultLogRoot = path.resolve(process.env.LOGZORD_LOG_ROOT || path.resolve(__dirname, '..'));
 const ROTATION_ID_PATTERN = /^(.+)::(\d{4}-\d{2}-\d{2})$/;
 // CA5: downloads acima de 5MB saem em .gz; a compressão é por stream, sem limite de tamanho.
 export const COMPRESSION_THRESHOLD_BYTES = 5 * 1024 * 1024;
@@ -68,8 +71,8 @@ function findTargetById(nodes, id) {
   return null;
 }
 
-function resolveTargetPath(target) {
-  return path.resolve(__dirname, '..', target.path);
+function resolveTargetPath(target, logRoot) {
+  return path.resolve(logRoot, target.path);
 }
 
 function escapeRegExp(value) {
@@ -78,10 +81,10 @@ function escapeRegExp(value) {
 
 // Resolve um targetId que pode ser um target estatico ou uma rotacao dinamica
 // (`${targetId}::AAAA-MM-DD`, nunca aceita path vindo do cliente).
-function resolveLogPath(tree, targetId) {
+function resolveLogPath(tree, targetId, logRoot) {
   const target = findTargetById(tree, targetId);
   if (target) {
-    return resolveTargetPath(target);
+    return resolveTargetPath(target, logRoot);
   }
 
   const rotationMatch = ROTATION_ID_PATTERN.exec(targetId);
@@ -95,10 +98,14 @@ function resolveLogPath(tree, targetId) {
     return null;
   }
 
-  return `${resolveTargetPath(baseTarget)}.${date}`;
+  return `${resolveTargetPath(baseTarget, logRoot)}.${date}`;
 }
 
-export function createApp({ targetsPath = defaultTargetsPath, configPath = defaultConfigPath } = {}) {
+export function createApp({
+  targetsPath = defaultTargetsPath,
+  configPath = defaultConfigPath,
+  logRoot = defaultLogRoot,
+} = {}) {
   const app = express();
   app.use(cors());
   app.use(express.json());
@@ -125,7 +132,7 @@ export function createApp({ targetsPath = defaultTargetsPath, configPath = defau
         return;
       }
 
-      const logPath = resolveTargetPath(target);
+      const logPath = resolveTargetPath(target, logRoot);
       const dir = path.dirname(logPath);
       const basename = path.basename(logPath);
 
@@ -154,7 +161,7 @@ export function createApp({ targetsPath = defaultTargetsPath, configPath = defau
   app.get('/api/targets/:id/download', (req, res) => {
     let logPath;
     try {
-      logPath = resolveLogPath(loadTargetTree(targetsPath), req.params.id);
+      logPath = resolveLogPath(loadTargetTree(targetsPath), req.params.id, logRoot);
     } catch (error) {
       res.status(500).json({ error: 'Failed to read targets' });
       return;
@@ -194,7 +201,7 @@ export function createApp({ targetsPath = defaultTargetsPath, configPath = defau
   return app;
 }
 
-function attachWebSocketServer(server, targetsPath) {
+function attachWebSocketServer(server, targetsPath, logRoot) {
   const wss = new WebSocketServer({ server });
 
   wss.on('connection', (ws) => {
@@ -308,7 +315,7 @@ function attachWebSocketServer(server, targetsPath) {
           const startOffset = data.offset || 0;
           const requestedStreamId = Number.isInteger(data.streamId) ? data.streamId : undefined;
           const tree = loadTargetTree(targetsPath);
-          const logPath = resolveLogPath(tree, targetId);
+          const logPath = resolveLogPath(tree, targetId, logRoot);
 
           if (!logPath) {
             sendMessage(ws, tagged({ type: 'ERROR', message: 'Target not found' }, requestedStreamId));
@@ -350,10 +357,14 @@ function attachWebSocketServer(server, targetsPath) {
   return wss;
 }
 
-export function createServer({ targetsPath = defaultTargetsPath, configPath = defaultConfigPath } = {}) {
-  const app = createApp({ targetsPath, configPath });
+export function createServer({
+  targetsPath = defaultTargetsPath,
+  configPath = defaultConfigPath,
+  logRoot = defaultLogRoot,
+} = {}) {
+  const app = createApp({ targetsPath, configPath, logRoot });
   const server = http.createServer(app);
-  const wss = attachWebSocketServer(server, targetsPath);
+  const wss = attachWebSocketServer(server, targetsPath, logRoot);
 
   return { app, server, wss };
 }
