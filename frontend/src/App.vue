@@ -16,6 +16,7 @@ import {
   ShellStatusBar,
   ShellCommandPalette,
   useShellKeybindings,
+  useShellViewport,
   type ShellTitleBarMenuItem,
   type ShellStatusBarItem,
 } from '@vagnernogueira/vsshellcode/vue'
@@ -105,16 +106,12 @@ function activateTab(id: string) {
   if (target) selectTarget(target)
 }
 
-// Abaixo deste breakpoint (Tailwind `sm`) a sidebar de 260px espreme o log; ver issue #27.
-const NARROW_VIEWPORT_QUERY = '(max-width: 639px)'
-
-function isNarrowViewport() {
-  return window.matchMedia?.(NARROW_VIEWPORT_QUERY).matches ?? false
-}
+// Em tela estreita a sidebar fica em overlay sobre o log (vsshellcode#18); ver issue #27.
+const { isNarrow } = useShellViewport()
 
 function selectTargetFromSidebar(target: LogTreeTarget) {
   selectTarget(target)
-  if (isNarrowViewport()) toggleSidebar()
+  if (isNarrow.value) toggleSidebar()
 }
 
 function requestRotations(target: LogTreeTarget) {
@@ -363,7 +360,10 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
       :items="views"
     />
 
-    <ShellSidebar :open="activeSection !== null">
+    <ShellSidebar
+      :open="activeSection !== null"
+      @dismiss="toggleSidebar"
+    >
       <div class="sidebar__section">
         <div class="sidebar__title">
           {{ activeView.title }}
@@ -435,22 +435,6 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
 .pulse-ring {
   box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
   animation: pulse-ring 2s infinite cubic-bezier(0.66, 0, 0, 1);
-}
-
-/* Issue #27: em telas estreitas o campo de busca sai do centro absoluto e encolhe
-   no fluxo da title bar, sem cobrir os controles de streaming. */
-@media (max-width: 639px) {
-  .title-bar__search {
-    position: static;
-    transform: none;
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .title-bar__actions {
-    gap: 4px;
-    padding: 0 4px;
-  }
 }
 
 @keyframes pulse-ring {

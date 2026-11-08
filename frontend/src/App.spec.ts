@@ -7,10 +7,12 @@ const {
   useLogStreamMock,
   useRecordingMock,
   useShellKeybindingsMock,
+  isNarrowMock,
 } = vi.hoisted(() => ({
   useLogStreamMock: vi.fn(),
   useRecordingMock: vi.fn(),
   useShellKeybindingsMock: vi.fn(),
+  isNarrowMock: { value: false },
 }))
 
 vi.mock('@/composables/useLogStream', () => ({
@@ -94,6 +96,7 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
     props: {
       open: { type: Boolean, required: true },
     },
+    emits: ['dismiss'],
     setup(props, { slots }) {
       return () =>
         h(
@@ -223,6 +226,7 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
     ShellStatusBar,
     ShellCommandPalette,
     useShellKeybindings: useShellKeybindingsMock,
+    useShellViewport: () => ({ isNarrow: isNarrowMock }),
   }
 })
 
@@ -300,6 +304,7 @@ describe('App', () => {
     useRecordingMock.mockReset()
     useRecordingMock.mockReturnValue(createRecordingState())
     useShellKeybindingsMock.mockReset()
+    isNarrowMock.value = false
   })
 
   it('troca a view ao selecionar outra atividade', async () => {
@@ -324,30 +329,29 @@ describe('App', () => {
   })
 
   it('em viewport estreita, colapsa a sidebar ao selecionar um alvo', async () => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })))
-    try {
-      const wrapper = mountApp()
+    isNarrowMock.value = true
+    const wrapper = mountApp()
 
-      await wrapper.findAll('aside button')[0]!.trigger('click')
+    await wrapper.findAll('aside button')[0]!.trigger('click')
 
-      expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeDefined()
-      expect(wrapper.find('.tabs .tab').text()).toContain('Application log')
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeDefined()
+    expect(wrapper.find('.tabs .tab').text()).toContain('Application log')
   })
 
   it('em viewport larga, mantém a sidebar aberta ao selecionar um alvo', async () => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })))
-    try {
-      const wrapper = mountApp()
+    const wrapper = mountApp()
 
-      await wrapper.findAll('aside button')[0]!.trigger('click')
+    await wrapper.findAll('aside button')[0]!.trigger('click')
 
-      expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeUndefined()
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeUndefined()
+  })
+
+  it('fecha a sidebar no dismiss da casca (clique fora / Esc em tela estreita)', async () => {
+    const wrapper = mountApp()
+
+    await wrapper.findComponent({ name: 'ShellSidebar' }).vm.$emit('dismiss')
+
+    expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeDefined()
   })
 
   it('compõe tabs abertas, troca a tab ativa e fecha a tab ativa', async () => {
