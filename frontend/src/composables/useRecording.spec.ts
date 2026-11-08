@@ -2,7 +2,7 @@ import { defineComponent, h, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { addMock, toArrayMock, gzipBlobMock, liveQueryMock, liveCount } = vi.hoisted(() => {
+const { addMock, records, pageReads, gzipBlobMock, liveQueryMock, liveCount } = vi.hoisted(() => {
   // Observable mínimo: simula o liveQuery do Dexie, que reemite a contagem a cada escrita (de qualquer aba).
   const liveCount = {
     observers: new Set<{ next: (value: number) => void }>(),
@@ -12,7 +12,9 @@ const { addMock, toArrayMock, gzipBlobMock, liveQueryMock, liveCount } = vi.hois
   }
   return {
     addMock: vi.fn(),
-    toArrayMock: vi.fn(),
+    // Conteúdo do Quadro para o export; ids crescentes como o '++id' do Dexie.
+    records: [] as Array<{ id: number, content: string }>,
+    pageReads: { count: 0 },
     gzipBlobMock: vi.fn(async () => new Blob(['gz'], { type: 'application/gzip' })),
     liveCount,
     liveQueryMock: vi.fn(() => ({
@@ -33,12 +35,26 @@ vi.mock('dexie', () => ({
       return { stores: () => {} }
     }
     table() {
-      return { add: addMock, toArray: toArrayMock, count: async () => addMock.mock.calls.length }
+      return {
+        add: addMock,
+        count: async () => addMock.mock.calls.length,
+        // where('id').above(x).limit(n).toArray(): a leitura paginada do export.
+        where: () => ({
+          above: (lastId: number) => ({
+            limit: (n: number) => ({
+              toArray: async () => {
+                pageReads.count++
+                return records.filter(r => r.id > lastId).slice(0, n)
+              },
+            }),
+          }),
+        }),
+      }
     }
   },
 }))
 
-import { COMPRESSION_THRESHOLD_BYTES, useRecording } from './useRecording'
+import { COMPRESSION_THRESHOLD_BYTES, EXPORT_PAGE_SIZE, useRecording } from './useRecording'
 
 const activeTargetId = ref<string | null>(null)
 let recording: ReturnType<typeof useRecording> | null = null
@@ -127,9 +143,20 @@ describe('useRecording', () => {
   })
 
   describe('exportRecord', () => {
+    let downloaded: Blob | null = null
+
+    function setRecords(contents: string[]) {
+      records.length = 0
+      contents.forEach((content, i) => records.push({ id: i + 1, content }))
+      pageReads.count = 0
+    }
+
     function captureDownloads() {
       const names: string[] = []
-      vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} })
+      vi.stubGlobal('URL', {
+        createObjectURL: (blob: Blob) => { downloaded = blob; return 'blob:x' },
+        revokeObjectURL: () => {},
+      })
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
         names.push(this.download)
       })
@@ -144,18 +171,44 @@ describe('useRecording', () => {
 
     it('baixa .txt sem compressão até o limite', async () => {
       const names = captureDownloads()
-      toArrayMock.mockResolvedValue([{ content: 'linha 1' }, { content: 'linha 2' }])
+      setRecords(['linha 1', 'linha 2'])
       mount(TestHarness)
 
       await recording!.exportRecord()
 
       expect(gzipBlobMock).not.toHaveBeenCalled()
       expect(names).toEqual(['logzord_analysis.txt'])
+      expect(await downloaded!.text()).toBe('linha 1\nlinha 2')
+    })
+
+    it('lê o Quadro em páginas e junta as linhas na ordem, sem separador sobrando entre páginas', async () => {
+      const names = captureDownloads()
+      const contents = Array.from({ length: EXPORT_PAGE_SIZE * 2 + 1 }, (_, i) => `l${i}`)
+      setRecords(contents)
+      mount(TestHarness)
+
+      await recording!.exportRecord()
+
+      expect(pageReads.count).toBe(3)
+      expect(names).toEqual(['logzord_analysis.txt'])
+      expect(await downloaded!.text()).toBe(contents.join('\n'))
+    })
+
+    it('Quadro vazio não baixa nada', async () => {
+      const names = captureDownloads()
+      vi.stubGlobal('alert', vi.fn())
+      setRecords([])
+      mount(TestHarness)
+
+      await recording!.exportRecord()
+
+      expect(names).toEqual([])
+      expect(alert).toHaveBeenCalledOnce()
     })
 
     it('comprime em .gz acima do limite', async () => {
       const names = captureDownloads()
-      toArrayMock.mockResolvedValue([{ content: 'x'.repeat(COMPRESSION_THRESHOLD_BYTES + 1) }])
+      setRecords(['x'.repeat(COMPRESSION_THRESHOLD_BYTES + 1)])
       mount(TestHarness)
 
       await recording!.exportRecord()

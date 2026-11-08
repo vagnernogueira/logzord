@@ -5,6 +5,8 @@ import { gzipBlob } from '@/lib/gzip'
 // CA5: exports acima de 5MB saem em .gz.
 export const COMPRESSION_THRESHOLD_BYTES = 5 * 1024 * 1024
 
+export const EXPORT_PAGE_SIZE = 10_000
+
 export function useRecording(activeTargetId: Ref<string | null>) {
   const db = new Dexie('LogzordAnalysisDB')
   db.version(1).stores({
@@ -45,15 +47,28 @@ export function useRecording(activeTargetId: Ref<string | null>) {
     await db.table('recordedLogs').clear()
   }
 
+  // Leitura paginada pela chave primária, uma parte de Blob por página: o export nunca monta uma string
+  // única com o Quadro inteiro, o que travava a aba com centenas de milhares de linhas (#24).
   async function exportRecord() {
-    const allRecords = await db.table('recordedLogs').toArray()
-    if (allRecords.length === 0) {
+    const table = db.table('recordedLogs')
+    const parts: Blob[] = []
+    let lastId = 0
+    for (;;) {
+      const page: Array<{ id: number, content: string }> = await table
+        .where('id').above(lastId).limit(EXPORT_PAGE_SIZE).toArray()
+      if (page.length === 0) break
+      const text = page.map((r) => r.content).join('\n')
+      parts.push(new Blob([parts.length > 0 ? `\n${text}` : text]))
+      lastId = page[page.length - 1]!.id
+      if (page.length < EXPORT_PAGE_SIZE) break
+    }
+
+    if (parts.length === 0) {
       alert('Nenhum log gravado no Quadro de Analise.')
       return
     }
 
-    const content = allRecords.map((r: { content: string }) => r.content).join('\n')
-    const blob = new Blob([content], { type: 'text/plain' })
+    const blob = new Blob(parts, { type: 'text/plain' })
 
     if (blob.size > COMPRESSION_THRESHOLD_BYTES) {
       downloadBlob(await gzipBlob(blob), 'logzord_analysis.txt.gz')

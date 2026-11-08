@@ -167,7 +167,7 @@ _docs/
 - [ADR-001 — Estratégia de Retomada de Stream (Pausa/Play)](./decisoes/ADR-001-resume-offset.md)
 - **Shell oficial:** o visual do Logzord é a casca `@vagnernogueira/vsshellcode` (estilo VS Code), adotada em substituição ao layout próprio anterior (`AppSidebar`, `LogToolbar`, `StatusBar`). Consumir o pacote como dependência do frontend, em vez de copiar CSS ou manter componentes shell ad-hoc; novos elementos de UI entram como view da sidebar (`views.config.ts`), slot da title bar, item da status bar ou comando da palette.
 - **Fonte de cor:** manter o tema VS Code do shell como fonte única e derivar os tokens Tailwind/shadcn por bridging VS Code → Tailwind.
-- **Persistência do Quadro de Análise:** o Quadro (`LogzordAnalysisDB`) persiste no IndexedDB do browser, é compartilhado entre as abas da mesma origem e só zera pelo botão Limpar ou pela limpeza dos dados do site (decisão de produto, issue #22). `recordedCount` vem de `liveQuery` do Dexie, que reemite a contagem a cada escrita, inclusive de outra aba. Não se chama `navigator.storage.persist()`: evita o prompt de permissão do Firefox, ao custo de o storage ser *best-effort* (ver §7.3).
+- **Persistência do Quadro de Análise:** o Quadro (`LogzordAnalysisDB`) persiste no IndexedDB do browser, é compartilhado entre as abas da mesma origem e só zera pelo botão Limpar ou pela limpeza dos dados do site (decisão de produto, issue #22). `recordedCount` vem de `liveQuery` do Dexie, que reemite a contagem a cada escrita, inclusive de outra aba. Não se chama `navigator.storage.persist()`: evita o prompt de permissão do Firefox, ao custo de o storage ser *best-effort* (ver §7.3). O export lê o Quadro em páginas de 10 mil linhas pela chave primária e monta o arquivo como `Blob` em partes, sem string única em memória (issue #24); a regra de gzip acima de 5MB segue valendo.
 - **Buffer de logs:** até 2000 linhas por aba em `shallowRef`, substituído inteiro uma vez por `LOG_CHUNK` (entradas imutáveis; mutar no lugar não dispara reatividade). Sem virtualização: a medição da issue #24 mostrou que o custo vinha do `push`+`shift` por linha no array reativo (O(n) por linha com o buffer cheio), não do DOM.
 - **Branch piloto:** `pilot/vsshellcode-integration` permanece local-only e superseded pela adoção do pacote; após o merge, seu descarte depende da decisão do humano e não é executado por esta sessão.
 
@@ -272,4 +272,4 @@ _docs/
 - **Versão 1.9**
   - **Data:** 2026-11-07
   - **Autor:** IA
-  - **Mudanças:** Pendências condicionais (issue #24). Buffer de logs em `shallowRef` com uma atribuição por chunk, eliminando o O(n) por linha medido com o buffer cheio; virtualização descartada (§7.2).
+  - **Mudanças:** Pendências condicionais (issue #24). Buffer de logs em `shallowRef` com uma atribuição por chunk, eliminando o O(n) por linha medido com o buffer cheio; virtualização descartada (§7.2). Export do Quadro paginado em partes de `Blob` (§7.2).
