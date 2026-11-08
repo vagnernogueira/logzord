@@ -58,6 +58,8 @@ describe('useLogStream', () => {
   })
 
   afterEach(() => {
+    // Harnesses montados com attachTo: sem limpar, o #log-container de um teste vaza para o getElementById do seguinte.
+    document.body.innerHTML = ''
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -72,6 +74,11 @@ describe('useLogStream', () => {
 
     const container = wrapper.get('#log-container').element as HTMLElement
     Object.defineProperty(container, 'scrollHeight', {
+      configurable: true,
+      value: 480,
+    })
+    // Conteúdo ainda cabe na visão: está no fim antes do chunk.
+    Object.defineProperty(container, 'clientHeight', {
       configurable: true,
       value: 480,
     })
@@ -93,6 +100,31 @@ describe('useLogStream', () => {
     await nextTick()
 
     expect(container.scrollTop).toBe(480)
+  })
+
+  it('não puxa a visão para o fim quando o usuário rolou para cima (#25)', async () => {
+    const wrapper = mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+
+    const ws = wsInstances[0]!
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+
+    const container = wrapper.get('#log-container').element as HTMLElement
+    Object.defineProperty(container, 'scrollHeight', { configurable: true, value: 1000 })
+    Object.defineProperty(container, 'clientHeight', { configurable: true, value: 400 })
+
+    // Rolado para cima: 1000 - 400 - 200 = 400px do fim.
+    container.scrollTop = 200
+    await logChunk(ws, 'linha 1\n', 8)
+    await nextTick()
+    expect(stream!.logs.value).toHaveLength(1)
+    expect(container.scrollTop).toBe(200)
+
+    // De volta ao fim (1000 - 400 = 600): o autoscroll retoma.
+    container.scrollTop = 600
+    await logChunk(ws, 'linha 2\n', 16)
+    await nextTick()
+    expect(container.scrollTop).toBe(1000)
   })
 
   it('syntaxHighlight escapa HTML do conteúdo e mantém os realces', async () => {

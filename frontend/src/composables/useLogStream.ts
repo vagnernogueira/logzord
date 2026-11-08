@@ -41,6 +41,8 @@ const DEFAULT_PAGE_LINES = 50
 // Estimativa de bytes/linha quando o buffer está vazio; a página é lida com folga de 2× e cortada em N linhas.
 const DEFAULT_LINE_BYTES = 200
 const PAGE_BYTES_MARGIN = 2
+// Folga em px para considerar a visão "no fim" (scrollTop fracionário, zoom).
+const STICK_TO_BOTTOM_THRESHOLD = 8
 
 function byteLength(value: string): number {
   return utf8.encode(value).length
@@ -383,6 +385,8 @@ export function useLogStream() {
 
     // Continuação do offset atual: o Fast Forward sem salto vira um Play comum.
     navigation = { kind: 'live' }
+    // Stick to bottom: só segue o fim se a visão já estava nele antes do chunk; quem rolou para cima fica onde está (#25).
+    const follow = isAtBottom()
     const parsed = splitLines(pendingLine + text, end - byteLength(pendingLine + text))
     pendingLine = parsed.pending
     appendLines(parsed.lines)
@@ -390,6 +394,7 @@ export function useLogStream() {
     currentWsOffset.value = end - byteLength(pendingLine)
     // O scroll-smooth foi removido de propósito: cada LOG_CHUNK reiniciava a animação suave.
     // Esperamos o nextTick porque o #log-container só recebe o novo conteúdo depois do patch do DOM do Vue.
+    if (!follow) return
     await nextTick()
     scrollToBottom()
   }
@@ -526,6 +531,12 @@ export function useLogStream() {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
+  }
+
+  function isAtBottom(): boolean {
+    const container = document.getElementById('log-container')
+    if (!container) return true
+    return container.scrollHeight - container.clientHeight - container.scrollTop <= STICK_TO_BOTTOM_THRESHOLD
   }
 
   function scrollToBottom() {
