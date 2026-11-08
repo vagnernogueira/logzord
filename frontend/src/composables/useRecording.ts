@@ -30,9 +30,10 @@ export function useRecording(activeTargetId: Ref<string | null>) {
     recordingTargetIds.value.delete(id)
   }
 
-  async function recordLine(line: string, offset: number, filterText: string) {
+  // `matches` é o mesmo critério do filtro da tela (lib/lineMatcher): o Quadro guarda só o que está visível.
+  async function recordLine(line: string, offset: number, matches: (line: string) => boolean) {
     if (!isRecording.value) return
-    if (filterText && !line.includes(filterText)) return
+    if (!matches(line)) return
 
     await db.table('recordedLogs').add({
       content: line,

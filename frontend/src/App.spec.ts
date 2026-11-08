@@ -53,6 +53,7 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
                 item.label,
               ),
             ),
+            slots.search?.(),
             slots.actions?.(),
           ],
         )
@@ -236,6 +237,8 @@ function createLogStreamState() {
   const selectedTarget = ref<LogTreeTarget | null>(null)
   const isPlaying = ref(false)
   const filterText = ref('')
+  const filterMode = ref<'substring' | 'regex'>('substring')
+  const filterError = ref<string | null>(null)
   const filteredLogs = ref<LogEntry[]>([])
   const currentWsOffset = ref(42)
   const selectTarget = vi.fn((target: LogTreeTarget) => {
@@ -247,6 +250,9 @@ function createLogStreamState() {
     selectedTarget,
     isPlaying,
     filterText,
+    filterMode,
+    lineMatcher: ref({ matches: () => true, error: null }),
+    filterError,
     filteredLogs,
     currentWsOffset,
     availableRotations: ref([]),
@@ -424,5 +430,45 @@ describe('App', () => {
     const wrapper = mountApp()
 
     expect(wrapper.find('[aria-label="Retroceder"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('o toggle de regex alterna o modo do filtro e reflete em aria-pressed', async () => {
+    const state = createLogStreamState()
+    useLogStreamMock.mockReturnValue(state)
+    const wrapper = mountApp()
+    const toggle = () => wrapper.find('[aria-label="Usar expressão regular"]')
+
+    expect(toggle().attributes('aria-pressed')).toBe('false')
+    await toggle().trigger('click')
+    expect(state.filterMode.value).toBe('regex')
+    expect(toggle().attributes('aria-pressed')).toBe('true')
+    await toggle().trigger('click')
+    expect(state.filterMode.value).toBe('substring')
+  })
+
+  it('regex inválida marca o campo de filtro com a mensagem de erro', () => {
+    const state = createLogStreamState()
+    state.filterError.value = 'Invalid regular expression: /foo(/: Unterminated group'
+    useLogStreamMock.mockReturnValue(state)
+    const wrapper = mountApp()
+    const input = wrapper.find('input[placeholder="Filtrar logs..."]')
+
+    expect(input.attributes('aria-invalid')).toBe('true')
+    expect(input.attributes('title')).toBe(state.filterError.value)
+  })
+
+  it('o callback de gravação usa o matcher do filtro', () => {
+    const state = createLogStreamState()
+    const matches = vi.fn(() => true)
+    state.lineMatcher.value = { matches, error: null }
+    useLogStreamMock.mockReturnValue(state)
+    const recording = createRecordingState()
+    useRecordingMock.mockReturnValue(recording)
+    mountApp()
+
+    const onLogEntry = state.setOnLogEntry.mock.calls[0]![0] as (line: string, offset: number) => void
+    onLogEntry('linha', 7)
+
+    expect(recording.recordLine).toHaveBeenCalledWith('linha', 7, matches)
   })
 })

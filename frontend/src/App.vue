@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Play, Pause, FastForward, Rewind, Download } from 'lucide-vue-next'
+import { Play, Pause, FastForward, Rewind, Download, Regex } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
@@ -28,6 +28,9 @@ const {
   selectedTarget,
   isPlaying,
   filterText,
+  filterMode,
+  lineMatcher,
+  filterError,
   filteredLogs,
   currentWsOffset,
   availableRotations,
@@ -58,7 +61,7 @@ const {
 } = useRecording(computed(() => selectedTarget.value?.id ?? null))
 
 setOnLogEntry((line: string, offset: number) => {
-  recordLine(line, offset, filterText.value)
+  recordLine(line, offset, lineMatcher.value.matches)
 })
 
 const wsState = computed(() => getWsState())
@@ -201,11 +204,32 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
             type="text"
             placeholder="Filtrar logs..."
             class="!h-7 w-full rounded-full bg-background px-4 py-1.5 pr-10 text-sm text-foreground shadow-inner focus:border-ring focus:ring-ring/50"
+            :class="filterError ? '!border-[var(--vscode-errorForeground)]' : ''"
+            :aria-invalid="filterError ? 'true' : undefined"
+            :title="filterError ?? undefined"
             @update:model-value="filterText = String($event)"
           />
-          <div class="absolute right-3 top-1/2 -translate-y-1/2 transform text-xs font-mono text-muted-foreground opacity-50">
-            /regex/
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="absolute right-1.5 top-1/2 !h-5 !w-5 -translate-y-1/2 rounded-full p-0.5"
+                  :class="filterMode === 'regex' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+                  aria-label="Usar expressão regular"
+                  :aria-pressed="filterMode === 'regex'"
+                  @click="filterMode = filterMode === 'regex' ? 'substring' : 'regex'"
+                >
+                  <Regex :size="12" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Usar expressão regular</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </template>
 

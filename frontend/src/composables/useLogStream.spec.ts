@@ -212,6 +212,47 @@ describe('useLogStream', () => {
     expect(stream!.filterText.value).toBe('WARN')
   })
 
+  it('modo do filtro é guardado por aba e aba nova começa em substring', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const app = { type: 'target' as const, id: 'app', label: 'App' }
+    const worker = { type: 'target' as const, id: 'worker', label: 'Worker' }
+
+    stream!.selectTarget(app)
+    stream!.filterText.value = '^ERROR'
+    stream!.filterMode.value = 'regex'
+
+    stream!.selectTarget(worker)
+    expect(stream!.filterMode.value).toBe('substring')
+    expect(stream!.filterText.value).toBe('')
+
+    stream!.selectTarget(app)
+    expect(stream!.filterMode.value).toBe('regex')
+    expect(stream!.filterText.value).toBe('^ERROR')
+
+    stream!.clearTarget()
+    expect(stream!.filterMode.value).toBe('substring')
+  })
+
+  it('filteredLogs aplica o modo regex e regex inválida não exibe nada', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    stream!.selectTarget({ type: 'target' as const, id: 'app', label: 'App' })
+    stream!.logs.value = [
+      { id: '1', content: 'ERROR db timeout', offset: 17 },
+      { id: '2', content: 'INFO ERROR ok', offset: 31 },
+    ]
+
+    stream!.filterText.value = '^ERROR'
+    expect(stream!.filteredLogs.value).toHaveLength(0)
+    stream!.filterMode.value = 'regex'
+    expect(stream!.filteredLogs.value.map(l => l.content)).toEqual(['ERROR db timeout'])
+
+    stream!.filterText.value = 'ERROR('
+    expect(stream!.filteredLogs.value).toHaveLength(0)
+    expect(stream!.filterError.value).toBeTruthy()
+  })
+
   it('forgetTarget e clearTarget descartam o filtro', async () => {
     mount(TestHarness, { attachTo: document.body })
     await flushPromises()

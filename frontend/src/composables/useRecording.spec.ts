@@ -56,13 +56,26 @@ describe('useRecording', () => {
 
     activeTargetId.value = 'worker'
     expect(recording!.isRecording.value).toBe(false)
-    await recording!.recordLine('linha do worker', 10, '')
+    await recording!.recordLine('linha do worker', 10, () => true)
     expect(addMock).not.toHaveBeenCalled()
 
     activeTargetId.value = 'app'
-    await recording!.recordLine('linha do app', 20, '')
+    await recording!.recordLine('linha do app', 20, () => true)
     await flushPromises()
     expect(addMock).toHaveBeenCalledWith({ content: 'linha do app', offset: 20 })
+  })
+
+  it('grava somente as linhas aceitas pelo matcher do filtro', async () => {
+    mount(TestHarness)
+    activeTargetId.value = 'app'
+    recording!.toggleRecord()
+    const matches = (line: string) => line.startsWith('ERROR')
+
+    await recording!.recordLine('INFO ok', 1, matches)
+    await recording!.recordLine('ERROR falhou', 2, matches)
+
+    expect(addMock).toHaveBeenCalledTimes(1)
+    expect(addMock).toHaveBeenCalledWith({ content: 'ERROR falhou', offset: 2 })
   })
 
   it('forgetTarget descarta o estado de gravação da aba', () => {

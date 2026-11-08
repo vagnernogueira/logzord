@@ -1,6 +1,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
 import { findTargetById } from '@/lib/logTree'
+import { makeLineMatcher, type FilterMode } from '@/lib/lineMatcher'
 
 const ROTATIONS_STORAGE_KEY = 'logzord:rotations'
 
@@ -89,6 +90,7 @@ export function useLogStream() {
   const isPlaying = ref(false)
   const logs = ref<LogEntry[]>([])
   const filterText = ref('')
+  const filterMode = ref<FilterMode>('substring')
   const currentWsOffset = ref(0)
   const wsState = ref<WebSocket['readyState']>(WebSocket.CLOSED)
   const availableRotations = ref<LogRotation[]>([])
@@ -107,14 +109,14 @@ export function useLogStream() {
   let navigation: NavigationState = { kind: 'live' }
   // Estado de play por aba: os controles comandam só a aba em foco; aba sem estado prévio abre tocando.
   const playStateByTarget = new Map<string, boolean>()
-  // Filtro por aba: editar o campo altera só o filtro da aba em foco.
-  const filterByTarget = new Map<string, string>()
+  // Filtro (texto + modo) por aba: editar o campo altera só o filtro da aba em foco.
+  const filterByTarget = new Map<string, { text: string, mode: FilterMode }>()
   // Logs e offset por aba: voltar a uma aba retoma de onde parou, sem reler o arquivo nem regravar no Record.
   const streamByTarget = new Map<string, { logs: LogEntry[], offset: number }>()
 
-  watch(filterText, (value) => {
+  watch([filterText, filterMode], ([text, mode]) => {
     if (selectedTarget.value) {
-      filterByTarget.set(selectedTarget.value.id, value)
+      filterByTarget.set(selectedTarget.value.id, { text, mode })
     }
   }, { flush: 'sync' })
 
@@ -125,9 +127,13 @@ export function useLogStream() {
   })
   const canRewind = computed(() => !!selectedTarget.value && bufferStart.value > 0)
 
+  const lineMatcher = computed(() => makeLineMatcher(filterText.value, filterMode.value))
+  const filterError = computed(() => lineMatcher.value.error)
+
   const filteredLogs = computed(() => {
     if (!filterText.value) return logs.value
-    return logs.value.filter(log => log.content.includes(filterText.value))
+    const { matches } = lineMatcher.value
+    return logs.value.filter(log => matches(log.content))
   })
 
   // O resultado vai para v-html: escapar o conteúdo do log antes de injetar os spans de realce.
@@ -200,7 +206,9 @@ export function useLogStream() {
     selectedTarget.value = target
     pendingLine = ''
     navigation = { kind: 'live' }
-    filterText.value = filterByTarget.get(target.id) ?? ''
+    const savedFilter = filterByTarget.get(target.id)
+    filterText.value = savedFilter?.text ?? ''
+    filterMode.value = savedFilter?.mode ?? 'substring'
     logs.value = saved?.logs ?? []
     currentWsOffset.value = saved?.offset ?? 0
     availableRotations.value = []
@@ -223,6 +231,7 @@ export function useLogStream() {
     }
     selectedTarget.value = null
     filterText.value = ''
+    filterMode.value = 'substring'
     pendingLine = ''
     expectedOffset = null
     navigation = { kind: 'live' }
@@ -555,6 +564,9 @@ export function useLogStream() {
     isPlaying,
     logs,
     filterText,
+    filterMode,
+    lineMatcher,
+    filterError,
     filteredLogs,
     currentWsOffset,
     WS_URL,

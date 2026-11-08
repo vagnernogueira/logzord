@@ -61,13 +61,14 @@ frontend/src/
 │   ├── useLogStream.spec.ts
 │   └── useRecording.ts
 ├── lib/
+│   ├── lineMatcher.ts
 │   ├── logTree.ts
 │   └── utils.ts
 └── types/
     └── index.ts
 ```
 
-`useRecording.ts` cria o próprio Dexie/IndexedDB (`LogzordAnalysisDB`, tabela `recordedLogs`). `lib/utils.ts` concentra helpers dos componentes `ui/` (padrão `shadcn-vue`); `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
+`useRecording.ts` cria o próprio Dexie/IndexedDB (`LogzordAnalysisDB`, tabela `recordedLogs`). `lib/lineMatcher.ts` (`makeLineMatcher`) é a fonte única do critério de filtro, usada pela tela (`filteredLogs`) e pelo Quadro (`recordLine`). `lib/utils.ts` concentra helpers dos componentes `ui/` (padrão `shadcn-vue`); `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
 
 ### 3.2 Fluxo de dados
 
@@ -77,13 +78,13 @@ frontend/src/
 - `App.vue` compõe a casca com `ShellTitleBar`, `ShellActivityBar`, `ShellSidebar`, `ShellTabs`, `ShellStatusBar` e `ShellCommandPalette`, todos de `@vagnernogueira/vsshellcode/vue`, e registra atalhos com `useShellKeybindings`. `ShellPanel` não é usado: o painel inferior foi removido da UI (`togglePanel` em `App.vue` é um stub exigido por `useShellKeybindings`).
 - `views.config.ts` declara as views `TargetsSection` (id `targets`, título "Logs") e `AnalysisSection` (id `analysis`); a `ShellActivityBar` seleciona a view ativa e `ShellSidebar` renderiza o componente correspondente com as props de `ViewPropsContext`.
 - Cada target selecionado abre uma aba em `ShellTabs` (`openTargetIds`); fechar a aba ativa seleciona a última restante, e fechar a última aba limpa a seleção (`clearTarget`).
-- Estado por aba em `useLogStream.ts`: play, filtro, logs e offset de retomada. Voltar a uma aba continua do offset salvo, sem reler o arquivo nem regravar no Record; fechar a aba descarta esse estado (`forgetTarget`).
+- Estado por aba em `useLogStream.ts`: play, filtro (texto + modo), logs e offset de retomada. Voltar a uma aba continua do offset salvo, sem reler o arquivo nem regravar no Record; fechar a aba descarta esse estado (`forgetTarget`).
 - `commands.config.ts` alimenta a `ShellCommandPalette`; `App.vue` mapeia cada id de comando para um handler (`commandHandlers`).
 - `LogEntry` e os tipos da árvore (`LogTreeNode`, `LogTreeTarget`, `LogRotation`) ficam em `frontend/src/types/index.ts`.
 
 ### 3.3 Componentes de interface
 
-- **Title bar (`ShellTitleBar`, slots em `App.vue`):** campo de filtro textual, botão play/pause, botões rewind/fast-forward (também nos comandos `stream-rewind`/`stream-fast-forward`; Rewind desabilitado com o buffer no início do arquivo) e toggle de gravação.
+- **Title bar (`ShellTitleBar`, slots em `App.vue`):** campo de filtro com toggle de regex (padrão substring; ambos case-sensitive; regex inválida não casa nada e marca o campo com o erro), botão play/pause, botões rewind/fast-forward (também nos comandos `stream-rewind`/`stream-fast-forward`; Rewind desabilitado com o buffer no início do arquivo) e toggle de gravação.
 - **Status bar (`ShellStatusBar`):** estado da conexão WebSocket (esquerda) e `OFFSET` corrente em bytes (direita).
 - `TargetsSection.vue` (sidebar) exibe a árvore hierárquica de targets com rotações sob demanda.
 - `AnalysisSection.vue` (sidebar) mostra o `Quadro de Análise`, com ações de exportação e limpeza do buffer gravado.
@@ -192,6 +193,7 @@ _docs/
 | `frontend/src/main.ts` | Imports globais do tema, shell, codicon e web components do pacote antes do CSS da aplicação |
 | `frontend/src/style.css` | Bridging dos tokens `--vscode-*` para os tokens semânticos Tailwind/shadcn |
 | `frontend/src/views.config.ts` | Catálogo declarativo das views da sidebar (itens da activity bar) |
+| `frontend/src/lib/lineMatcher.ts` | Critério de filtro (substring/regex) compartilhado entre tela e Quadro de Análise |
 | `frontend/src/lib/logTree.ts` | Busca na árvore de targets e conversão para `ShellTreeNode` |
 | `frontend/src/commands.config.ts` | Comandos integrados à command palette |
 | `wkr/generate-logs.sh` | Gerador local de logs de teste com suporte a `--reset` |
@@ -262,4 +264,4 @@ _docs/
 - **Versão 1.8**
   - **Data:** 2026-11-07
   - **Autor:** IA
-  - **Mudanças:** Pendências da auditoria (issue #22). Remoção do módulo morto `db/index.ts` (`LogzordDB`, nunca importado) e alinhamento do §3.1: `useRecording.ts` cria o próprio Dexie.
+  - **Mudanças:** Pendências da auditoria (issue #22). Remoção do módulo morto `db/index.ts` (`LogzordDB`, nunca importado) e alinhamento do §3.1: `useRecording.ts` cria o próprio Dexie. Filtro com modo regex alternável (`lib/lineMatcher.ts`), substituindo o placeholder `/regex/` enganoso.
