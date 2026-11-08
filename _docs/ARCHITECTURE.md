@@ -160,6 +160,7 @@ _docs/
   - **Rewind:** só cliente, sem mudar o protocolo. Lê `[X, inícioDoBuffer)` com `START_STREAM` em X, descarta a primeira linha parcial, envia `PAUSE_STREAM` ao alcançar o início do buffer e **prefixa** as N linhas mais próximas dele. Acima de 2000 linhas saem as mais novas e `currentWsOffset` recua até a última mantida (o Play relê o trecho cortado). Termina pausado.
   - **Fast Forward:** `START_STREAM` com `fromEnd` (bytes, opcional): o servidor começa em `max(offset, tamanho − fromEnd)`, nunca antes do offset do cliente. Sem salto, os chunks são anexados (vira Play); com salto, o cliente acumula a cauda até o `STREAM_END` e substitui o buffer pelas N últimas linhas. Segue tocando.
 - **Guarda de continuidade:** o cliente mantém o byte esperado do próximo chunk (`expectedOffset`; nulo quando pausado). Um `LOG_CHUNK` é aceito se começa até esse byte e termina depois dele (a sobreposição é recortada); lacuna é descartada, exceto o salto do Fast Forward. Isso neutraliza chunks em voo de um stream anterior do mesmo alvo.
+- **Identificação do stream (`streamId`):** `START_STREAM` aceita um `streamId` inteiro opcional, e o servidor o devolve em `LOG_CHUNK`, `STREAM_END` e `ERROR` daquele stream (o id é fixado na criação de cada leitura, então dados já lidos de um stream substituído saem com o id antigo). O cliente incrementa um contador a cada `START_STREAM` e descarta mensagens com outro id antes da guarda de continuidade; mensagens sem `streamId` seguem como antes. Isso elimina chunks em voo de outra aba e a leitura de um chunk antigo como o salto do Fast Forward (issue #24). Mudança aditiva e retrocompatível do contrato.
 - **Reconexão automática:** `useLogStream.ts` reconecta o WebSocket automaticamente após `close`/`error`, com espera fixa de 5s (`scheduleReconnect`), enquanto o composable estiver montado (`shouldReconnect`). Ao reabrir a conexão, se `isPlaying` ainda estiver ativo o cliente reenvia `START_STREAM` com o último `currentWsOffset` conhecido — a retomada após reconexão segue o mesmo contrato de byte offset do Play/Pause manual (ver [ADR-001](./decisoes/ADR-001-resume-offset.md)).
 
 ### 7.2 Decisões arquiteturais centrais
@@ -173,7 +174,6 @@ _docs/
 
 ### 7.3 Limitações conhecidas (resumo)
 
-- `LOG_CHUNK` não carrega `targetId`: um chunk em voo de outra aba só é aceito se, por coincidência, cobrir exatamente o byte esperado da aba atual. No Fast Forward, um chunk em voo que salte além do byte esperado (fragmento pendente no momento do clique) pode ser lido como o salto; um novo Play/Fast Forward recupera. Eliminar de vez exige identificar o stream no protocolo.
 - Retomada de stream requer armazenamento preciso do byte offset pelo frontend; imprecisão resulta em lacuna ou sobreposição de logs.
 - Integridade por linha (CA2): `LOG_CHUNK` traz texto arbitrário; `useLogStream.ts` retém o fragmento final sem `\n` e só emite linhas completas. O offset de retomada (`currentWsOffset`) aponta para o fim da última linha completa; num novo `START_STREAM` da mesma aba o servidor relê o fragmento pendente e o cliente recorta a parte já recebida (guarda de continuidade, §7.1). Ao trocar de aba o fragmento é descartado. Consequência: uma última linha sem `\n` final não é exibida até o escritor completá-la.
 - Quadro de Análise *best-effort*: sem `navigator.storage.persist()`, o browser pode despejar o IndexedDB sob pressão de armazenamento, e o WebKit/Safari o apaga pelo ITP após ~7 dias sem interação. Em aba anônima, some ao fechar a janela.
@@ -272,4 +272,4 @@ _docs/
 - **Versão 1.9**
   - **Data:** 2026-11-07
   - **Autor:** IA
-  - **Mudanças:** Pendências condicionais (issue #24). Buffer de logs em `shallowRef` com uma atribuição por chunk, eliminando o O(n) por linha medido com o buffer cheio; virtualização descartada (§7.2). Export do Quadro paginado em partes de `Blob` (§7.2).
+  - **Mudanças:** Pendências condicionais (issue #24). Buffer de logs em `shallowRef` com uma atribuição por chunk, eliminando o O(n) por linha medido com o buffer cheio; virtualização descartada (§7.2). Export do Quadro paginado em partes de `Blob` (§7.2). `streamId` opcional no protocolo WebSocket (§7.1), removendo a limitação de chunks em voo de §7.3.

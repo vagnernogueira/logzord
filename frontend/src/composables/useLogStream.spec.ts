@@ -26,6 +26,11 @@ class FakeWebSocket {
 
 let stream: ReturnType<typeof useLogStream> | null = null
 
+// Última mensagem enviada pelo cliente; o streamId do START_STREAM é um contador e não entra nas comparações exatas.
+function lastSent(ws: FakeWebSocket) {
+  return JSON.parse(ws.send.mock.lastCall![0] as string)
+}
+
 function logChunk(ws: FakeWebSocket, content: string, offset: number) {
   return ws.onmessage?.(
     new MessageEvent('message', { data: JSON.stringify({ type: 'LOG_CHUNK', content, offset }) }),
@@ -150,9 +155,7 @@ describe('useLogStream', () => {
     stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
 
     expect(stream!.isPlaying.value).toBe(true)
-    expect(ws.send).toHaveBeenLastCalledWith(
-      JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 0 }),
-    )
+    expect(lastSent(ws)).toEqual({ ...{ type: 'START_STREAM', targetId: 'app', offset: 0 }, streamId: expect.any(Number) })
   })
 
   it('play/pause afeta somente a aba em foco', async () => {
@@ -168,9 +171,7 @@ describe('useLogStream', () => {
 
     stream!.selectTarget(worker)
     expect(stream!.isPlaying.value).toBe(true)
-    expect(ws.send).toHaveBeenLastCalledWith(
-      JSON.stringify({ type: 'START_STREAM', targetId: 'worker', offset: 0 }),
-    )
+    expect(lastSent(ws)).toEqual({ ...{ type: 'START_STREAM', targetId: 'worker', offset: 0 }, streamId: expect.any(Number) })
 
     ws.send.mockClear()
     stream!.selectTarget(app)
@@ -331,9 +332,7 @@ describe('useLogStream', () => {
     stream!.togglePlay()
     stream!.togglePlay()
 
-    expect(ws.send).toHaveBeenLastCalledWith(
-      JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 7 }),
-    )
+    expect(lastSent(ws)).toEqual({ ...{ type: 'START_STREAM', targetId: 'app', offset: 7 }, streamId: expect.any(Number) })
 
     await logChunk(ws, 'próxima\n', 16)
     expect(stream!.logs.value.map((log) => [log.content, log.offset])).toEqual([
@@ -362,9 +361,7 @@ describe('useLogStream', () => {
     stream!.selectTarget(app)
     expect(stream!.logs.value.map((log) => log.content)).toEqual(['linha app'])
     expect(stream!.currentWsOffset.value).toBe(10)
-    expect(ws.send).toHaveBeenLastCalledWith(
-      JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 10 }),
-    )
+    expect(lastSent(ws)).toEqual({ ...{ type: 'START_STREAM', targetId: 'app', offset: 10 }, streamId: expect.any(Number) })
     expect(lines).toEqual(['linha app', 'linha worker'])
 
     stream!.selectTarget(worker)
@@ -443,9 +440,7 @@ describe('useLogStream', () => {
       await logChunk(ws, 'a\n', 2)
 
       stream!.fastForward()
-      expect(ws.send).toHaveBeenLastCalledWith(
-        JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 2, fromEnd: 8 }),
-      )
+      expect(lastSent(ws)).toEqual({ ...{ type: 'START_STREAM', targetId: 'app', offset: 2, fromEnd: 8 }, streamId: expect.any(Number) })
 
       await logChunk(ws, '\nl2a\nl3\nl4\n', 100)
       expect(stream!.logs.value.map((log) => log.content)).toEqual(['a'])
@@ -481,9 +476,7 @@ describe('useLogStream', () => {
 
       stream!.rewind()
       expect(stream!.isPlaying.value).toBe(false)
-      expect(ws.send).toHaveBeenLastCalledWith(
-        JSON.stringify({ type: 'START_STREAM', targetId: 'app', offset: 82 }),
-      )
+      expect(lastSent(ws)).toEqual({ ...{ type: 'START_STREAM', targetId: 'app', offset: 82 }, streamId: expect.any(Number) })
 
       // Chunk do stream ao vivo ainda em voo: lacuna em relação ao início da página, descartado.
       await logChunk(ws, 'l5\n', 103)
@@ -537,6 +530,47 @@ describe('useLogStream', () => {
       expect(stream!.logs.value.slice(0, 2).map((log) => log.content)).toEqual(['w', 'q'])
       expect(stream!.currentWsOffset.value).toBe(stream!.logs.value[1999]!.offset)
       expect(stream!.currentWsOffset.value).toBe(4010 + 1998 * 2 - 4)
+    })
+
+    describe('streamId', () => {
+      function message(ws: FakeWebSocket, data: Record<string, unknown>) {
+        return ws.onmessage?.(new MessageEvent('message', { data: JSON.stringify(data) }))
+      }
+
+      it('Fast Forward descarta chunk em voo do stream anterior em vez de lê-lo como o salto', async () => {
+        const ws = await mountWithPageLines(2)
+        stream!.selectTarget(app)
+        const previous = lastSent(ws).streamId
+        await message(ws, { type: 'LOG_CHUNK', content: 'a\n', offset: 2, streamId: previous })
+
+        stream!.fastForward()
+        const current = lastSent(ws).streamId
+        expect(current).not.toBe(previous)
+
+        // Chunk do Play anterior além do byte esperado: sem streamId seria tomado como o salto.
+        await message(ws, { type: 'LOG_CHUNK', content: 'zz\n', offset: 50, streamId: previous })
+        await message(ws, { type: 'STREAM_END', streamId: previous })
+        await message(ws, { type: 'LOG_CHUNK', content: '\nl2a\nl3\nl4\n', offset: 100, streamId: current })
+        expect(stream!.logs.value.map((log) => log.content)).toEqual(['a'])
+
+        await message(ws, { type: 'STREAM_END', streamId: current })
+        expect(stream!.logs.value.map((log) => log.content)).toEqual(['l3', 'l4'])
+        expect(stream!.currentWsOffset.value).toBe(100)
+      })
+
+      it('ERROR de stream anterior não pausa o stream atual', async () => {
+        const ws = await mountWithPageLines(2)
+        stream!.selectTarget(app)
+        const previous = lastSent(ws).streamId
+        stream!.fastForward()
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+
+        await message(ws, { type: 'ERROR', message: 'old', streamId: previous })
+        expect(stream!.isPlaying.value).toBe(true)
+
+        await message(ws, { type: 'ERROR', message: 'now', streamId: lastSent(ws).streamId })
+        expect(stream!.isPlaying.value).toBe(false)
+      })
     })
   })
 })

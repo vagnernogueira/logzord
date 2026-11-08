@@ -108,6 +108,9 @@ export function useLogStream() {
   // Chunks de streams anteriores ainda em voo trazem bytes reais do arquivo: sobreposição é recortada, lacuna é descartada.
   let expectedOffset: number | null = null
   let navigation: NavigationState = { kind: 'live' }
+  // Id do último START_STREAM: o servidor o devolve em LOG_CHUNK/STREAM_END/ERROR e mensagens de outro
+  // stream (aba anterior, salto do Fast Forward) são descartadas antes das guardas de offset (#24).
+  let streamId = 0
   // Estado de play por aba: os controles comandam só a aba em foco; aba sem estado prévio abre tocando.
   const playStateByTarget = new Map<string, boolean>()
   // Filtro (texto + modo) por aba: editar o campo altera só o filtro da aba em foco.
@@ -304,6 +307,8 @@ export function useLogStream() {
 
     ws.onmessage = async (event) => {
       const data = JSON.parse(event.data)
+      // Mensagem sem streamId (servidor antigo) segue para as guardas de offset, como antes.
+      if (data.streamId !== undefined && data.streamId !== streamId) return
 
       if (data.type === 'LOG_CHUNK') {
         await handleChunk(data.content, data.offset)
@@ -444,6 +449,7 @@ export function useLogStream() {
       type: 'START_STREAM',
       targetId: selectedTarget.value.id,
       offset: currentWsOffset.value,
+      streamId: ++streamId,
       ...extra,
     }))
     return true
@@ -488,6 +494,7 @@ export function useLogStream() {
       type: 'START_STREAM',
       targetId: selectedTarget.value!.id,
       offset: start,
+      streamId: ++streamId,
     }))
   }
 

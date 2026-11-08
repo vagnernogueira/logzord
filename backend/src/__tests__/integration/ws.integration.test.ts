@@ -242,6 +242,52 @@ describe('WebSocket log streaming', () => {
     expect(messages.filter((message) => message.type === 'LOG_CHUNK')).toEqual([]);
   });
 
+  it('echoes the optional streamId in LOG_CHUNK and STREAM_END', async () => {
+    testServer = await createTestServer();
+    ws = await openWebSocket(testServer.url);
+
+    const streamMessages = waitForStreamEnd(ws);
+    ws.send(JSON.stringify({
+      type: 'START_STREAM',
+      targetId: 'sample',
+      offset: 0,
+      streamId: 7,
+    }));
+
+    const messages = await streamMessages;
+    expect(messages.find((message) => message.type === 'LOG_CHUNK').streamId).toBe(7);
+    expect(messages.find((message) => message.type === 'STREAM_END')).toEqual({ type: 'STREAM_END', streamId: 7 });
+  });
+
+  it('tags the ERROR of a rejected START_STREAM with its streamId', async () => {
+    testServer = await createTestServer();
+    ws = await openWebSocket(testServer.url);
+
+    const errorMessage = waitForMessage(ws, (message) => message.type === 'ERROR');
+    ws.send(JSON.stringify({
+      type: 'START_STREAM',
+      targetId: 'does-not-exist',
+      offset: 0,
+      streamId: 3,
+    }));
+
+    expect(await errorMessage).toEqual({ type: 'ERROR', message: 'Target not found', streamId: 3 });
+  });
+
+  it('tags chunks read after a restart with the new streamId', async () => {
+    testServer = await createTestServer('aaaa\n');
+    ws = await openWebSocket(testServer.url);
+
+    ws.send(JSON.stringify({ type: 'START_STREAM', targetId: 'sample', offset: 0, streamId: 1 }));
+    await waitForMessage(ws, (message) => message.type === 'STREAM_END');
+
+    const restarted = waitForMessage(ws, (message) => message.type === 'LOG_CHUNK');
+    ws.send(JSON.stringify({ type: 'START_STREAM', targetId: 'sample', offset: 0, streamId: 2 }));
+
+    const chunk = await restarted;
+    expect(chunk).toEqual({ type: 'LOG_CHUNK', content: 'aaaa\n', offset: 5, streamId: 2 });
+  });
+
   it('starts at the tail of the file when fromEnd is given', async () => {
     testServer = await createTestServer('aaaa\nbbbb\ncccc\n');
     ws = await openWebSocket(testServer.url);

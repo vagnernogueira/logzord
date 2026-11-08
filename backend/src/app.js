@@ -204,6 +204,13 @@ function attachWebSocketServer(server, targetsPath) {
     let currentOffset = 0;
     let isStreaming = false;
     let watchTimer = null;
+    // streamId opcional do START_STREAM, devolvido em LOG_CHUNK/STREAM_END/ERROR para o cliente descartar
+    // mensagens em voo de um stream anterior (#24). Sem ele, as mensagens saem como antes.
+    let currentStreamId;
+
+    function tagged(message, streamId = currentStreamId) {
+      return streamId === undefined ? message : { ...message, streamId };
+    }
 
     function cleanupCurrentStream() {
       if (currentStream) {
@@ -229,7 +236,7 @@ function attachWebSocketServer(server, targetsPath) {
       fs.stat(currentTargetPath, (statError, stats) => {
         if (!isStreaming || !currentTargetPath || statError) {
           if (statError && isStreaming) {
-            sendMessage(ws, { type: 'ERROR', message: statError.message });
+            sendMessage(ws, tagged({ type: 'ERROR', message: statError.message }));
           }
           return;
         }
@@ -249,14 +256,16 @@ function attachWebSocketServer(server, targetsPath) {
           encoding: 'utf8',
         });
         currentStream = stream;
+        // Fixado na criação: dados já lidos de um stream destruído saem com o id antigo.
+        const streamId = currentStreamId;
 
         stream.on('data', (chunk) => {
           currentOffset += byteLengthOf(chunk);
-          sendMessage(ws, {
+          sendMessage(ws, tagged({
             type: 'LOG_CHUNK',
             content: chunk,
             offset: currentOffset,
-          });
+          }, streamId));
         });
 
         stream.on('end', () => {
@@ -265,7 +274,7 @@ function attachWebSocketServer(server, targetsPath) {
           }
 
           currentStream = null;
-          sendMessage(ws, { type: 'STREAM_END' });
+          sendMessage(ws, tagged({ type: 'STREAM_END' }, streamId));
           if (isStreaming) {
             watchTimer = setTimeout(scheduleRead, 1000);
           }
@@ -277,7 +286,7 @@ function attachWebSocketServer(server, targetsPath) {
           }
 
           currentStream = null;
-          sendMessage(ws, { type: 'ERROR', message: streamError.message });
+          sendMessage(ws, tagged({ type: 'ERROR', message: streamError.message }, streamId));
         });
       });
     }
@@ -297,21 +306,23 @@ function attachWebSocketServer(server, targetsPath) {
         if (data.type === 'START_STREAM') {
           const targetId = data.targetId;
           const startOffset = data.offset || 0;
+          const requestedStreamId = Number.isInteger(data.streamId) ? data.streamId : undefined;
           const tree = loadTargetTree(targetsPath);
           const logPath = resolveLogPath(tree, targetId);
 
           if (!logPath) {
-            sendMessage(ws, { type: 'ERROR', message: 'Target not found' });
+            sendMessage(ws, tagged({ type: 'ERROR', message: 'Target not found' }, requestedStreamId));
             return;
           }
 
           if (!fs.existsSync(logPath)) {
-            sendMessage(ws, { type: 'ERROR', message: `Log file not found: ${targetId}` });
+            sendMessage(ws, tagged({ type: 'ERROR', message: `Log file not found: ${targetId}` }, requestedStreamId));
             return;
           }
 
           cleanupCurrentStream();
           stopWatching();
+          currentStreamId = requestedStreamId;
           currentTargetPath = logPath;
           currentOffset = startOffset;
           // Fast Forward: pula para a cauda do arquivo, mas nunca recua antes do offset do cliente.
