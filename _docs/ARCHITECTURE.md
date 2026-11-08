@@ -30,7 +30,7 @@ O Logzord adota um estilo de **Monólito Modular** em um monorepo TypeScript. A 
 | :--- | :--- | :--- |
 | **Frontend** | Vue.js 3 + Vite | Agilidade no build e reatividade performática. |
 | **Shell de UI** | `@vagnernogueira/vsshellcode` `^1.1.8` | Casca visual estilo VS Code (title bar, activity bar, sidebar, tabs, status bar, command palette) e tema; pacote Vue 3 instalado pelo GitHub Packages. |
-| **UI Kit** | shadcn-vue + radix-vue + Tailwind | Primitives de controle (botão, input, tooltip, card) dentro da casca; tokens de cor derivados do tema do shell. |
+| **UI Kit** | Componentes `Shell*` + `vscode-elements` (via `vsshellcode`); shadcn-vue + radix-vue + Tailwind como legado | A UI se baseia ao máximo na casca; implementação própria só onde ela não cobre (§3.4). shadcn/lucide ainda servem a title bar e o Quadro, em migração (issue #28). |
 | **Backend** | Node.js + Express | Gerenciamento eficiente de I/O assíncrono e Streams. |
 | **Comunicação** | WebSockets (ws) | Streaming bidirecional em tempo real. |
 | **Persistência** | Dexie.js (IndexedDB) | Abstração robusta para o Quadro de Análise e configs. |
@@ -92,16 +92,16 @@ frontend/src/
 
 ### 3.4 Dependências de UI
 
-- A pasta `frontend/src/components/ui/` segue o padrão do `shadcn-vue` e usa `radix-vue` como base para primitives de interface.
-- Os componentes locais incluem `Button`, `Card`, `Input`, `Badge`, `Separator`, `Tooltip` e `ScrollArea`; `App.vue` (title bar) e `AnalysisSection.vue` consomem `Button`, `Input`, `Tooltip` e `Card`.
-- Ícones: `lucide-vue-next` nos controles da title bar; ícones da própria casca (activity bar, tabs, status bar, palette) usam nomes codicon fornecidos por `@vagnernogueira/vsshellcode`.
+- **Regra:** a UI se baseia ao máximo no `vsshellcode`, nesta ordem: (1) componentes `Shell*` e classes de `shell.css`; (2) web components do `vscode-elements` 2.5.1 empacotados na casca e registrados por `js/vscode-elements.js` (`vscode-textfield`, `vscode-toolbar-button`, `vscode-button`, `vscode-icon`, `vscode-badge`, `vscode-divider`…); (3) implementação própria em `frontend/src/components/` só onde nenhum dos dois cobrir, com codicons e tokens `--vscode-*`. Um controle genérico que falte na casca vira issue no `vsshellcode` (ex.: controles padrão da title bar, vagnernogueira/vsshellcode#19).
+- **Ícones:** codicons (`css/codicon.css` da casca) em toda a UI.
+- **Legado em migração (issue #28):** `frontend/src/components/ui/` segue o padrão do `shadcn-vue` sobre `radix-vue` (`Button`, `Card`, `Input`, `Badge`, `Separator`, `Tooltip`, `ScrollArea`); hoje `App.vue` (title bar) consome `Button`, `Input` e `Tooltip` com ícones `lucide-vue-next`, e `AnalysisSection.vue` consome `Card` e `Button`. Não ampliar esse uso; o Tailwind preflight ainda afeta o `line-height` da casca.
 
 ### 3.5 Shell oficial, registry e tema
 
 - `frontend/package.json` depende de `@vagnernogueira/vsshellcode` na faixa `^1.1.8`.
 - O pacote é consumido pelo registry do GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para `https://npm.pkg.github.com` e usa `${GITHUB_TOKEN}` como token de instalação; nenhum token é versionado. O `make build` grava o token em um arquivo temporário com permissões restritas e o monta como segredo apenas durante o build do frontend; o token não é interpolado no Compose nem persistido em uma layer da imagem.
 - `frontend/src/main.ts` importa `css/theme.css`, `css/shell.css`, `css/codicon.css` e `js/vscode-elements.js` de `@vagnernogueira/vsshellcode` antes de `frontend/src/style.css`.
-- O bridging de cor adotado na Fase 6 usa VS Code → Tailwind: as variáveis `--vscode-*` fornecidas pelo shell são a fonte única, e `frontend/src/style.css` mapeia os tokens semânticos do Tailwind/shadcn para elas. `tailwind.config.js` preserva utilitários de opacidade com `color-mix`.
+- O bridging de cor adotado na Fase 6 usa VS Code → Tailwind: as variáveis `--vscode-*` fornecidas pelo shell são a fonte única, e `frontend/src/style.css` mapeia os tokens semânticos do Tailwind/shadcn para elas. `tailwind.config.js` preserva utilitários de opacidade com `color-mix`. O bridging existe para o legado shadcn (§3.4) e sai com ele (issue #28).
 - `pilot/vsshellcode-integration` é um branch local-only do piloto, superseded pela adoção do pacote; o destino é descartá-lo após o merge, conforme decisão do humano. Esta sessão não remove o branch.
 
 ### 3.6 CI/CD (`.github/workflows/`)
@@ -167,7 +167,8 @@ _docs/
 
 - [ADR-001 — Estratégia de Retomada de Stream (Pausa/Play)](./decisoes/ADR-001-resume-offset.md)
 - **Shell oficial:** o visual do Logzord é a casca `@vagnernogueira/vsshellcode` (estilo VS Code), adotada em substituição ao layout próprio anterior (`AppSidebar`, `LogToolbar`, `StatusBar`). Consumir o pacote como dependência do frontend, em vez de copiar CSS ou manter componentes shell ad-hoc; novos elementos de UI entram como view da sidebar (`views.config.ts`), slot da title bar, item da status bar ou comando da palette.
-- **Fonte de cor:** manter o tema VS Code do shell como fonte única e derivar os tokens Tailwind/shadcn por bridging VS Code → Tailwind.
+- **Fonte de cor:** manter o tema VS Code do shell como fonte única; implementação própria usa `--vscode-*` direto. Os tokens Tailwind/shadcn derivados por bridging valem só para o legado em migração (issue #28).
+- **Controles de UI:** casca primeiro (componentes `Shell*`, depois `vscode-elements` empacotado), implementação própria só onde ela não cobre (§3.4). Substitui a adoção de shadcn-vue/lucide como UI kit.
 - **Persistência do Quadro de Análise:** o Quadro (`LogzordAnalysisDB`) persiste no IndexedDB do browser, é compartilhado entre as abas da mesma origem e só zera pelo botão Limpar ou pela limpeza dos dados do site (decisão de produto, issue #22). `recordedCount` vem de `liveQuery` do Dexie, que reemite a contagem a cada escrita, inclusive de outra aba. Não se chama `navigator.storage.persist()`: evita o prompt de permissão do Firefox, ao custo de o storage ser *best-effort* (ver §7.3). O export lê o Quadro em páginas de 10 mil linhas pela chave primária e monta o arquivo como `Blob` em partes, sem string única em memória (issue #24); a regra de gzip acima de 5MB segue valendo.
 - **Buffer de logs:** até 2000 linhas por aba em `shallowRef`, substituído inteiro uma vez por `LOG_CHUNK` (entradas imutáveis; mutar no lugar não dispara reatividade). Sem virtualização: a medição da issue #24 mostrou que o custo vinha do `push`+`shift` por linha no array reativo (O(n) por linha com o buffer cheio), não do DOM.
 - **Branch piloto:** `pilot/vsshellcode-integration` permanece local-only e superseded pela adoção do pacote; após o merge, seu descarte depende da decisão do humano e não é executado por esta sessão.
@@ -273,3 +274,8 @@ _docs/
   - **Data:** 2026-11-07
   - **Autor:** IA
   - **Mudanças:** Pendências condicionais (issue #24). Buffer de logs em `shallowRef` com uma atribuição por chunk, eliminando o O(n) por linha medido com o buffer cheio; virtualização descartada (§7.2). Export do Quadro paginado em partes de `Blob` (§7.2). `streamId` opcional no protocolo WebSocket (§7.1), removendo a limitação de chunks em voo de §7.3.
+
+- **Versão 1.10**
+  - **Data:** 2026-11-08
+  - **Autor:** IA
+  - **Mudanças:** Regra de UI: basear ao máximo no `vsshellcode` (componentes `Shell*`, depois `vscode-elements` empacotado) e usar implementação própria só onde a casca não cobrir, com codicons e tokens `--vscode-*` (§2, §3.4, §3.5, §7.2). shadcn-vue, radix-vue e `lucide-vue-next` passam a legado em migração (issue #28); controles padrão da title bar propostos na casca (vagnernogueira/vsshellcode#19).
