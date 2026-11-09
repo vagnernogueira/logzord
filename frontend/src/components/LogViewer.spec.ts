@@ -1,45 +1,18 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
 import LogViewer from './LogViewer.vue'
-import { useLogStream } from '@/composables/useLogStream'
-
-let syntaxHighlight: (content: string) => string
-
-const Harness = defineComponent({
-  setup() {
-    syntaxHighlight = useLogStream().syntaxHighlight
-    return () => h('div')
-  },
-})
+import { syntaxHighlight } from '@/lib/syntaxHighlight'
 
 describe('LogViewer', () => {
-  beforeEach(() => {
-    vi.stubGlobal('WebSocket', class {
-      static OPEN = 1
-      static CLOSED = 3
-      readyState = 3
-      send = vi.fn()
-      close = vi.fn()
-    })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => [] }))
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
-  it('exibe marcação HTML de uma linha de log como texto, sem criar elementos', async () => {
-    mount(Harness)
-    await flushPromises()
+  it('exibe marcação HTML de uma linha de log como texto, sem criar elementos', () => {
     const payload = '<img src=x onerror="window.__xss = true"><script>window.__xss = true</script>'
+    const content = `[WARN] ${payload}`
 
     const wrapper = mount(LogViewer, {
       props: {
-        filteredLogs: [{ id: '1', offset: 0, content: `[WARN] ${payload}` }],
+        filteredLogs: [{ id: 1, offset: 0, content, html: syntaxHighlight(content) }],
         isPlaying: true,
         hasTarget: true,
-        syntaxHighlight,
       },
     })
 

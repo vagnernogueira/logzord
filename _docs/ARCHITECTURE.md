@@ -61,12 +61,13 @@ frontend/src/
 │   └── useRecording.ts
 ├── lib/
 │   ├── lineMatcher.ts
-│   └── logTree.ts
+│   ├── logTree.ts
+│   └── syntaxHighlight.ts
 └── types/
     └── index.ts
 ```
 
-`useRecording.ts` cria o próprio Dexie/IndexedDB (`LogzordAnalysisDB`, tabela `recordedLogs`). `lib/lineMatcher.ts` (`makeLineMatcher`) é a fonte única do critério de filtro, usada pela tela (`filteredLogs`) e pelo Quadro (`recordLine`). `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
+`useRecording.ts` cria o próprio Dexie/IndexedDB (`LogzordAnalysisDB`, tabela `recordedLogs`). `lib/lineMatcher.ts` (`makeLineMatcher`) é a fonte única do critério de filtro, usada pela tela (`filteredLogs`) e pelo Quadro (`recordLine`). `lib/syntaxHighlight.ts` escapa e realça uma linha uma única vez, ao criar a `LogEntry` (campo `html`, lido pelo `LogViewer` via `v-html`); o id da entrada é um contador monotônico. `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
 
 ### 3.2 Fluxo de dados
 
@@ -124,7 +125,7 @@ frontend/src/
    +--> @vagnernogueira/vsshellcode/vue
    |      TitleBar (filtro / play / record) / ActivityBar / Sidebar / Tabs / StatusBar / CommandPalette
    +--> views.config.ts ----> TargetsSection / AnalysisSection (na Sidebar)
-   +--> LogViewer ---- filteredLogs / syntaxHighlight (área do editor)
+   +--> LogViewer ---- filteredLogs (log.html pré-realçado) (área do editor)
        |
        v (porta 3001, único ponto de contato externo do container)
     [ Nginx ] -- estático (dist/) -- proxy /api, /ws --> [ Node/Express (127.0.0.1:3002) ]
@@ -200,6 +201,7 @@ _docs/
 | `frontend/src/views.config.ts` | Catálogo declarativo das views da sidebar (itens da activity bar) |
 | `frontend/src/lib/lineMatcher.ts` | Critério de filtro (substring/regex) compartilhado entre tela e Quadro de Análise |
 | `frontend/src/lib/logTree.ts` | Busca na árvore de targets e conversão para `ShellTreeNode` |
+| `frontend/src/lib/syntaxHighlight.ts` | Escape + realce de nível/ORA de uma linha, aplicado na criação da `LogEntry` |
 | `frontend/src/commands.config.ts` | Comandos integrados à command palette |
 | `wkr/generate-logs.sh` | Gerador local de logs de teste com suporte a `--reset` |
 | `wkr/sample.log` | Arquivo de log de exemplo consumido pelo alvo `sample` |

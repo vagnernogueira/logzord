@@ -25,7 +25,9 @@ export interface LogRotation {
 }
 
 export interface LogEntry {
-  id: string
+  id: number
   offset: number
   content: string
+  // Conteúdo escapado e realçado, pronto para v-html.
+  html: string
 }
