@@ -12,15 +12,15 @@ defineProps<{
 <template>
   <div
     id="log-container"
-    class="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed"
+    class="lz-log"
   >
     <div
       v-if="filteredLogs.length === 0"
-      class="h-full flex items-center justify-center text-muted-foreground flex-col"
+      class="lz-log__empty"
     >
-      <div
+      <span
         v-if="isPlaying"
-        class="w-16 h-16 border-4 border-muted border-t-primary rounded-full animate-spin mb-4 opacity-50"
+        class="codicon codicon-loading codicon-modifier-spin lz-log__spinner"
       />
       <p v-if="!hasTarget">
         Selecione um log na árvore.
@@ -33,7 +33,7 @@ defineProps<{
     <div
       v-for="log in filteredLogs"
       :key="log.id"
-      class="hover:bg-accent/50 px-2 py-0.5 rounded transition-colors break-all whitespace-pre-wrap border-l-2 border-transparent hover:border-border"
+      class="lz-log__line"
       v-html="syntaxHighlight(log.content)"
     />
   </div>

@@ -20,8 +20,7 @@ O visual é a casca `@vagnernogueira/vsshellcode` (estilo VS Code); a fonte de v
 
 - Estender a UI pelos pontos da casca: view em `frontend/src/views.config.ts`, slot da title bar, item da status bar, comando em `frontend/src/commands.config.ts`. Componentes próprios ficam em `frontend/src/components/`.
 - Basear a UI ao máximo no `vsshellcode`, nesta ordem: (1) componentes `Shell*` e classes de `shell.css`; (2) web components do `vscode-elements` empacotados na casca (`vscode-textfield`, `vscode-toolbar-button`, `vscode-button`, `vscode-icon`, `vscode-badge`…); (3) implementação própria só onde nenhum dos dois cobrir. Faltou um controle genérico na casca? Abrir issue em `vagnernogueira/vsshellcode` em vez de mantê-lo só aqui.
-- Implementação própria usa só tokens `--vscode-*` (fonte única de cor) e codicons; não criar componentes novos com shadcn-vue/radix-vue nem ícones `lucide-vue-next`.
-- `components/ui/` (shadcn), `lucide-vue-next` e o bridging Tailwind/shadcn em `frontend/src/style.css` são legado em migração (issue #28): não ampliar o uso.
+- Implementação própria usa só tokens `--vscode-*` (fonte única de cor) e codicons, com classes `lz-*` em `frontend/src/style.css`; o projeto não usa Tailwind, shadcn-vue/radix-vue nem `lucide-vue-next` (removidos na issue #28).
 - Instalar o pacote exige `GITHUB_TOKEN` com escopo `read:packages` (procedimento no `README.md`).
 
 ## Validação

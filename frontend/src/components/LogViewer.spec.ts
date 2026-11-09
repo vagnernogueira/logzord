@@ -46,6 +46,6 @@ describe('LogViewer', () => {
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.find('script').exists()).toBe(false)
     expect(wrapper.text()).toContain(payload)
-    expect(wrapper.find('span.text-yellow-500').text()).toBe('[WARN]')
+    expect(wrapper.find('span.lz-level--warn').text()).toBe('[WARN]')
   })
 })

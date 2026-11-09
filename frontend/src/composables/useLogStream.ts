@@ -145,10 +145,10 @@ export function useLogStream() {
   // O resultado vai para v-html: escapar o conteúdo do log antes de injetar os spans de realce.
   function syntaxHighlight(content: string): string {
     return escapeHtml(content)
-      .replace(/\[ERROR\]/g, '<span class="text-red-500 font-bold">[ERROR]</span>')
-      .replace(/\[WARN\]/g, '<span class="text-yellow-500 font-bold">[WARN]</span>')
-      .replace(/\[INFO\]/g, '<span class="text-blue-500 font-bold">[INFO]</span>')
-      .replace(/(ORA-\d+)/g, '<span class="text-red-600 font-bold bg-red-100 px-1 rounded">$1</span>')
+      .replace(/\[ERROR\]/g, '<span class="lz-level lz-level--error">[ERROR]</span>')
+      .replace(/\[WARN\]/g, '<span class="lz-level lz-level--warn">[WARN]</span>')
+      .replace(/\[INFO\]/g, '<span class="lz-level lz-level--info">[INFO]</span>')
+      .replace(/(ORA-\d+)/g, '<span class="lz-level lz-level--ora">$1</span>')
   }
 
   function applyPersistedRotations(nodes: LogTreeNode[]) {

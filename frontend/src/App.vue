@@ -1,9 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Play, Pause, FastForward, Rewind, Download, Regex } from 'lucide-vue-next'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
 import type { LogRotation, LogTreeTarget } from '@/types'
@@ -189,6 +185,7 @@ const statusBarLeftItems = computed<ShellStatusBarItem[]>(() => [
 const statusBarRightItems = computed<ShellStatusBarItem[]>(() => [
   {
     id: 'offset',
+    icon: 'symbol-ruler',
     label: `OFFSET: ${currentWsOffset.value} bytes`,
   },
 ])
@@ -197,161 +194,97 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
 </script>
 
 <template>
-  <div class="shell dark custom-scrollbar">
+  <div class="shell">
     <ShellTitleBar :menu-items="titleBarMenuItems">
       <template #icon>
         <span
+          class="codicon codicon-output"
           role="img"
           aria-label="Logzord"
-        >🤖</span>
+        />
       </template>
 
       <template #search>
-        <div class="relative w-72 max-sm:w-full">
-          <Input
-            :model-value="filterText"
+        <div
+          class="lz-filter"
+          :class="{ 'lz-filter--invalid': filterError }"
+        >
+          <span class="codicon codicon-search" />
+          <input
+            :value="filterText"
             type="text"
+            class="lz-filter__input"
             placeholder="Filtrar logs..."
-            class="!h-7 w-full rounded-full bg-background px-4 py-1.5 pr-10 text-sm text-foreground shadow-inner focus:border-ring focus:ring-ring/50"
-            :class="filterError ? '!border-[var(--vscode-errorForeground)]' : ''"
             :aria-invalid="filterError ? 'true' : undefined"
             :title="filterError ?? undefined"
-            @update:model-value="filterText = String($event)"
-          />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  class="absolute right-1.5 top-1/2 !h-5 !w-5 -translate-y-1/2 rounded-full p-0.5"
-                  :class="filterMode === 'regex' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
-                  aria-label="Usar expressão regular"
-                  :aria-pressed="filterMode === 'regex'"
-                  @click="filterMode = filterMode === 'regex' ? 'substring' : 'regex'"
-                >
-                  <Regex :size="12" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Usar expressão regular</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+            @input="filterText = ($event.target as HTMLInputElement).value"
+          >
+          <button
+            type="button"
+            class="lz-filter__toggle"
+            title="Usar expressão regular"
+            aria-label="Usar expressão regular"
+            :aria-pressed="filterMode === 'regex'"
+            @click="filterMode = filterMode === 'regex' ? 'substring' : 'regex'"
+          >
+            <span class="codicon codicon-regex" />
+          </button>
         </div>
       </template>
 
       <template #actions>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                class="!h-7 !w-7 rounded-full shadow-md transition-all duration-300 active:scale-95"
-                :class="isPlaying ? 'bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
-                :aria-label="isPlaying ? 'Pausar streaming' : 'Iniciar streaming'"
-                @click="togglePlay"
-              >
-                <Pause
-                  v-if="isPlaying"
-                  :size="14"
-                  class="fill-current"
-                />
-                <Play
-                  v-else
-                  :size="14"
-                  class="fill-current ml-0.5"
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{{ isPlaying ? 'Pausar' : 'Iniciar' }} streaming</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <div class="flex h-7 items-center rounded-full border border-border bg-secondary p-0.5">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  class="!h-6 !w-6 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  aria-label="Retroceder"
-                  :disabled="!canRewind"
-                  @click="rewind"
-                >
-                  <Rewind :size="13" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Retroceder</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  class="!h-6 !w-6 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  aria-label="Avançar"
-                  :disabled="!selectedTarget"
-                  @click="fastForward"
-                >
-                  <FastForward :size="13" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Ir para o fim (ao vivo)</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                class="!h-7 !w-7 rounded-full border border-border bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80"
-                aria-label="Baixar log"
-                :disabled="!selectedTarget"
-                @click="downloadLog"
-              >
-                <Download :size="13" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Baixar o arquivo de log (.gz acima de 5MB)</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                class="!h-7 !w-7 rounded-full border shadow-sm transition-all duration-300"
-                :class="isRecording ? 'bg-destructive/20 text-destructive border-destructive/50 pulse-ring' : 'bg-secondary text-secondary-foreground border-border hover:bg-secondary/80'"
-                :aria-label="isRecording ? 'Parar gravação' : 'Iniciar gravação'"
-                @click="toggleRecord"
-              >
-                <div
-                  class="h-2 w-2 rounded-full transition-all duration-300"
-                  :class="isRecording ? 'animate-pulse bg-destructive' : 'bg-muted-foreground'"
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{{ isRecording ? 'Parar' : 'Iniciar' }} gravacao no Quadro de Analise</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <button
+          type="button"
+          class="lz-icon-button"
+          :title="isPlaying ? 'Pausar streaming' : 'Iniciar streaming'"
+          :aria-label="isPlaying ? 'Pausar streaming' : 'Iniciar streaming'"
+          @click="togglePlay"
+        >
+          <span
+            class="codicon"
+            :class="isPlaying ? 'codicon-debug-pause' : 'codicon-debug-start'"
+          />
+        </button>
+        <button
+          type="button"
+          class="lz-icon-button"
+          title="Retroceder"
+          aria-label="Retroceder"
+          :disabled="!canRewind"
+          @click="rewind"
+        >
+          <span class="codicon codicon-debug-reverse-continue" />
+        </button>
+        <button
+          type="button"
+          class="lz-icon-button"
+          title="Ir para o fim (ao vivo)"
+          aria-label="Avançar"
+          :disabled="!selectedTarget"
+          @click="fastForward"
+        >
+          <span class="codicon codicon-debug-continue" />
+        </button>
+        <button
+          type="button"
+          class="lz-icon-button"
+          title="Baixar o arquivo de log (.gz acima de 5MB)"
+          aria-label="Baixar log"
+          :disabled="!selectedTarget"
+          @click="downloadLog"
+        >
+          <span class="codicon codicon-cloud-download" />
+        </button>
+        <button
+          type="button"
+          class="lz-icon-button"
+          :class="{ 'lz-icon-button--recording': isRecording }"
+          :title="isRecording ? 'Parar gravação no Quadro de Análise' : 'Iniciar gravação no Quadro de Análise'"
+          :aria-label="isRecording ? 'Parar gravação' : 'Iniciar gravação'"
+          @click="toggleRecord"
+        >
+          <span class="codicon codicon-record" />
+        </button>
       </template>
     </ShellTitleBar>
 
@@ -364,23 +297,18 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
       :open="activeSection !== null"
       @dismiss="toggleSidebar"
     >
-      <div class="sidebar__section">
-        <div class="sidebar__title">
-          {{ activeView.title }}
-        </div>
-        <component
-          :is="activeView.component"
-          v-bind="activeViewProps"
-          @select-target="selectTargetFromSidebar"
-          @request-rotations="requestRotations"
-          @add-rotation="addTargetRotation"
-          @export-record="exportRecord"
-          @clear-record="clearRecord"
-        />
-      </div>
+      <component
+        :is="activeView.component"
+        v-bind="activeViewProps"
+        @select-target="selectTargetFromSidebar"
+        @request-rotations="requestRotations"
+        @add-rotation="addTargetRotation"
+        @export-record="exportRecord"
+        @clear-record="clearRecord"
+      />
     </ShellSidebar>
 
-    <div class="main min-h-0">
+    <div class="main">
       <ShellTabs
         :tabs="tabs"
         :active-tab-id="selectedTarget?.id ?? null"
@@ -388,7 +316,7 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
         @close="closeTab"
       />
 
-      <div class="editor-area flex min-h-0 flex-1 flex-col !p-0 overflow-hidden">
+      <div class="editor-area lz-editor-area">
         <LogViewer
           :filtered-logs="filteredLogs"
           :is-playing="isPlaying"
@@ -411,35 +339,3 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
     />
   </div>
 </template>
-
-<style>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 1);
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 1);
-  border-radius: 5px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(71, 85, 105, 1);
-}
-
-.glow {
-  box-shadow: 0 0 15px rgba(37, 99, 235, 0.5);
-}
-
-.pulse-ring {
-  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-  animation: pulse-ring 2s infinite cubic-bezier(0.66, 0, 0, 1);
-}
-
-@keyframes pulse-ring {
-  to {
-    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-  }
-}
-</style>

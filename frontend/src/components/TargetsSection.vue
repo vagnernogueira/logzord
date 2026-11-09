@@ -47,8 +47,11 @@ function pickRotation(rotation: LogRotation) {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
-    <div class="flex-1 overflow-auto p-2">
+  <div class="sidebar__section lz-view">
+    <div class="sidebar__title">
+      Logs
+    </div>
+    <div class="lz-view__body">
       <ShellTree
         :nodes="shellNodes"
         @select="onSelect"
@@ -57,43 +60,46 @@ function pickRotation(rotation: LogRotation) {
 
     <div
       v-if="canShowRotations"
-      class="border-t border-border p-2 text-sm"
+      class="lz-view__footer"
     >
       <button
-        class="w-full rounded-md px-3 py-2 text-left text-muted-foreground hover:bg-accent"
+        class="lz-list__item"
         type="button"
         data-testid="rotations-toggle"
+        :aria-expanded="pickerOpen"
         @click="openRotationsPicker"
       >
-        Ver logs rotacionados de "{{ selectedTarget?.label }}"
+        <span
+          class="codicon"
+          :class="pickerOpen ? 'codicon-chevron-down' : 'codicon-chevron-right'"
+        />
+        <span class="lz-list__label">Ver logs rotacionados de "{{ selectedTarget?.label }}"</span>
       </button>
 
-      <div
-        v-if="pickerOpen"
-        class="mt-1 space-y-1"
-      >
+      <template v-if="pickerOpen">
         <p
           v-if="rotationsLoading"
-          class="px-3 py-1 text-muted-foreground"
+          class="lz-list__hint"
         >
           Carregando...
         </p>
         <p
           v-else-if="availableRotations.length === 0"
-          class="px-3 py-1 text-muted-foreground"
+          class="lz-list__hint"
         >
           Nenhum arquivo rotacionado disponível.
         </p>
         <button
           v-for="rotation in availableRotations"
           :key="rotation.id"
-          class="w-full rounded-md px-3 py-1 text-left hover:bg-accent"
+          class="lz-list__item lz-list__item--nested"
           type="button"
           @click="pickRotation(rotation)"
         >
-          {{ rotation.label }}
+          <span class="codicon codicon-history" />
+          <span class="lz-list__label">{{ rotation.label }}</span>
         </button>
-      </div>
+      </template>
     </div>
   </div>
 </template>

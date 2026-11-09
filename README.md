@@ -10,7 +10,7 @@ O Logzord é uma SPA Vue 3 com backend Node.js que permite monitorar arquivos de
 
 | Camada | Tecnologia |
 | :--- | :--- |
-| **Frontend** | Vue 3 · TypeScript · Vite · Tailwind CSS |
+| **Frontend** | Vue 3 · TypeScript · Vite |
 | **Shell de UI** | `@vagnernogueira/vsshellcode` (casca estilo VS Code: title bar, activity bar, sidebar, abas, status bar, command palette) |
 | **Backend** | Node.js · Express · WebSocket (`ws`) |
 | **Persistência** | Arquivos de log do filesystem (read-only) · `targets.json` |
