@@ -1,6 +1,6 @@
 {
   "name": "logzord",
-  "version": "1.2.32",
+  "version": "1.2.33",
   "description": "Logzord — Software Architecture (Hub IA-First)",
   "private": true,
   "workspaces": [
