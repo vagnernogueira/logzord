@@ -201,11 +201,39 @@ export function createApp({
   return app;
 }
 
-function attachWebSocketServer(server, targetsPath, logRoot) {
-  const wss = new WebSocketServer({ server });
+export const WS_PATH = '/ws';
+// Mensagens do protocolo têm poucos bytes; o padrão do ws (100MB) só abre espaço para abuso (#30).
+export const WS_MAX_PAYLOAD_BYTES = 64 * 1024;
+export const DEFAULT_HEARTBEAT_INTERVAL_MS = 30000;
+
+function attachWebSocketServer(server, targetsPath, logRoot, heartbeatIntervalMs) {
+  const wss = new WebSocketServer({ server, path: WS_PATH, maxPayload: WS_MAX_PAYLOAD_BYTES });
+
+  // Heartbeat: quem não responder ao ping até o próximo ciclo é derrubado, liberando timer e estado (#30).
+  const heartbeat = setInterval(() => {
+    for (const client of wss.clients) {
+      if (client.isAlive === false) {
+        client.terminate();
+        continue;
+      }
+      client.isAlive = false;
+      client.ping();
+    }
+  }, heartbeatIntervalMs);
+  heartbeat.unref();
+  wss.on('close', () => clearInterval(heartbeat));
 
   wss.on('connection', (ws) => {
     console.log('Client connected');
+    ws.isAlive = true;
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
+    // Erros de protocolo (ex.: payload acima de maxPayload) são emitidos aqui; sem listener viram exceção
+    // não tratada e derrubam o processo. O ws já fecha a conexão.
+    ws.on('error', (error) => {
+      console.error('WebSocket connection error:', error.message);
+    });
     let currentStream = null;
     let currentTargetPath = null;
     let currentOffset = 0;
@@ -257,11 +285,19 @@ function attachWebSocketServer(server, targetsPath, logRoot) {
           return;
         }
 
-        const stream = fs.createReadStream(currentTargetPath, {
-          start: currentOffset,
-          end: stats.size - 1,
-          encoding: 'utf8',
-        });
+        let stream;
+        try {
+          stream = fs.createReadStream(currentTargetPath, {
+            start: currentOffset,
+            end: stats.size - 1,
+            encoding: 'utf8',
+          });
+        } catch (readError) {
+          // Fora do try/catch do handler de mensagem: sem isso a exceção derruba o processo (#30).
+          isStreaming = false;
+          sendMessage(ws, tagged({ type: 'ERROR', message: readError.message }));
+          return;
+        }
         currentStream = stream;
         // Fixado na criação: dados já lidos de um stream destruído saem com o id antigo.
         const streamId = currentStreamId;
@@ -312,8 +348,18 @@ function attachWebSocketServer(server, targetsPath, logRoot) {
 
         if (data.type === 'START_STREAM') {
           const targetId = data.targetId;
-          const startOffset = data.offset || 0;
+          const startOffset = data.offset === undefined ? 0 : data.offset;
           const requestedStreamId = Number.isInteger(data.streamId) ? data.streamId : undefined;
+
+          if (typeof targetId !== 'string') {
+            sendMessage(ws, tagged({ type: 'ERROR', message: 'Invalid targetId' }, requestedStreamId));
+            return;
+          }
+
+          if (!Number.isSafeInteger(startOffset) || startOffset < 0) {
+            sendMessage(ws, tagged({ type: 'ERROR', message: 'Invalid offset' }, requestedStreamId));
+            return;
+          }
           const tree = loadTargetTree(targetsPath);
           const logPath = resolveLogPath(tree, targetId, logRoot);
 
@@ -361,10 +407,11 @@ export function createServer({
   targetsPath = defaultTargetsPath,
   configPath = defaultConfigPath,
   logRoot = defaultLogRoot,
+  heartbeatIntervalMs = DEFAULT_HEARTBEAT_INTERVAL_MS,
 } = {}) {
   const app = createApp({ targetsPath, configPath, logRoot });
   const server = http.createServer(app);
-  const wss = attachWebSocketServer(server, targetsPath, logRoot);
+  const wss = attachWebSocketServer(server, targetsPath, logRoot, heartbeatIntervalMs);
 
   return { app, server, wss };
 }
