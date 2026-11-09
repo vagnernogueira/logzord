@@ -2,6 +2,12 @@ import { defineComponent, h, nextTick } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLogStream } from './useLogStream'
+import { syntaxHighlight } from '@/lib/syntaxHighlight'
+
+vi.mock('@/lib/syntaxHighlight', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/syntaxHighlight')>()
+  return { syntaxHighlight: vi.fn(original.syntaxHighlight) }
+})
 
 const wsInstances: FakeWebSocket[] = []
 
@@ -125,18 +131,6 @@ describe('useLogStream', () => {
     await logChunk(ws, 'linha 2\n', 16)
     await nextTick()
     expect(container.scrollTop).toBe(1000)
-  })
-
-  it('syntaxHighlight escapa HTML do conteúdo e mantém os realces', async () => {
-    mount(TestHarness, { attachTo: document.body })
-    await flushPromises()
-
-    const html = stream!.syntaxHighlight(`[ERROR] ORA-00942 <img src=x onerror="alert('x')"> & fim`)
-
-    expect(html).not.toContain('<img')
-    expect(html).toContain('&lt;img src=x onerror=&quot;alert(&#39;x&#39;)&quot;&gt; &amp; fim')
-    expect(html).toContain('<span class="lz-level lz-level--error">[ERROR]</span>')
-    expect(html).toContain('<span class="lz-level lz-level--ora">ORA-00942</span>')
   })
 
   it('não seleciona nenhum target ao carregar a árvore', async () => {
@@ -272,8 +266,8 @@ describe('useLogStream', () => {
     await flushPromises()
     stream!.selectTarget({ type: 'target' as const, id: 'app', label: 'App' })
     stream!.logs.value = [
-      { id: '1', content: 'ERROR db timeout', offset: 17 },
-      { id: '2', content: 'INFO ERROR ok', offset: 31 },
+      { id: 1, content: 'ERROR db timeout', html: 'ERROR db timeout', offset: 17 },
+      { id: 2, content: 'INFO ERROR ok', html: 'INFO ERROR ok', offset: 31 },
     ]
 
     stream!.filterText.value = '^ERROR'
@@ -351,6 +345,28 @@ describe('useLogStream', () => {
     expect(contents[0]).toBe('a500')
     expect(contents[1999]).toBe('b999')
     expect(emitted).toBe(2500)
+  })
+
+  it('mantém ids únicos com mais de 2000 linhas e realça só as linhas novas de cada chunk (#36)', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+    const highlight = vi.mocked(syntaxHighlight)
+
+    let text = ''
+    for (let chunk = 0; chunk < 5; chunk++) {
+      const lines = Array.from({ length: 600 }, (_, i) => `[INFO] c${chunk} l${i}\n`).join('')
+      text += lines
+      highlight.mockClear()
+      await logChunk(ws, lines, new TextEncoder().encode(text).length)
+      expect(highlight).toHaveBeenCalledTimes(600)
+    }
+
+    const ids = stream!.logs.value.map((log) => log.id)
+    expect(ids).toHaveLength(2000)
+    expect(new Set(ids).size).toBe(2000)
+    expect(stream!.logs.value[0]!.html).toBe('<span class="lz-level lz-level--info">[INFO]</span> c1 l400')
   })
 
   it('pausar no meio de uma linha retoma do fim da última linha completa', async () => {

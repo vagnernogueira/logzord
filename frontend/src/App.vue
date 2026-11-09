@@ -43,7 +43,6 @@ const {
   fastForward,
   canRewind,
   downloadLog,
-  syntaxHighlight,
   setOnLogEntry,
   getWsState,
   fetchRotationsFor,
@@ -294,7 +293,6 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
           :filtered-logs="filteredLogs"
           :is-playing="isPlaying"
           :has-target="!!selectedTarget"
-          :syntax-highlight="syntaxHighlight"
         />
       </div>
     </div>

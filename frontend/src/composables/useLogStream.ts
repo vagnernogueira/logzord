@@ -2,6 +2,7 @@ import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } fr
 import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
 import { findTargetById } from '@/lib/logTree'
 import { makeLineMatcher, type FilterMode } from '@/lib/lineMatcher'
+import { syntaxHighlight } from '@/lib/syntaxHighlight'
 
 const ROTATIONS_STORAGE_KEY = 'logzord:rotations'
 
@@ -22,15 +23,6 @@ function savePersistedRotations(map: PersistedRotations) {
   } catch {
     // localStorage indisponível (modo privado, quota) — degrada sem persistir
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }
 
 const utf8 = new TextEncoder()
@@ -72,6 +64,19 @@ function splitLines(text: string, textStart: number, dropFirst = false) {
     lines.push({ content: line, offset: lineEndOffset })
   })
   return { lines, pending }
+}
+
+// Contador monotônico: ids únicos como :key do v-for, inclusive entre abas (#36).
+let nextEntryId = 0
+
+// O realce é calculado uma vez, na criação da entrada, e não a cada renderização da lista (#36).
+function toEntries(lines: ParsedLine[]): LogEntry[] {
+  return lines.map((line) => ({
+    id: ++nextEntryId,
+    offset: line.offset,
+    content: line.content,
+    html: syntaxHighlight(line.content),
+  }))
 }
 
 type NavigationState =
@@ -141,15 +146,6 @@ export function useLogStream() {
     const { matches } = lineMatcher.value
     return logs.value.filter(log => matches(log.content))
   })
-
-  // O resultado vai para v-html: escapar o conteúdo do log antes de injetar os spans de realce.
-  function syntaxHighlight(content: string): string {
-    return escapeHtml(content)
-      .replace(/\[ERROR\]/g, '<span class="lz-level lz-level--error">[ERROR]</span>')
-      .replace(/\[WARN\]/g, '<span class="lz-level lz-level--warn">[WARN]</span>')
-      .replace(/\[INFO\]/g, '<span class="lz-level lz-level--info">[INFO]</span>')
-      .replace(/(ORA-\d+)/g, '<span class="lz-level lz-level--ora">$1</span>')
-  }
 
   function applyPersistedRotations(nodes: LogTreeNode[]) {
     const persisted = loadPersistedRotations()
@@ -340,12 +336,7 @@ export function useLogStream() {
   // Uma atribuição por chunk: push+shift por linha num array reativo custava O(n) por linha com o buffer cheio (#24).
   function appendLines(lines: ParsedLine[]) {
     if (lines.length === 0) return
-    const entries = lines.map((line) => ({
-      id: Math.random().toString(36).substring(7),
-      offset: line.offset,
-      content: line.content,
-    }))
-    logs.value = [...logs.value, ...entries].slice(-MAX_LOG_ENTRIES)
+    logs.value = [...logs.value, ...toEntries(lines)].slice(-MAX_LOG_ENTRIES)
 
     if (onLogEntry) {
       for (const line of lines) onLogEntry(line.content, line.offset)
@@ -409,12 +400,7 @@ export function useLogStream() {
     // Só o trecho [start, end): o que passou do início do buffer já está na tela.
     const page = utf8Decoder.decode(utf8.encode(text).slice(0, end - start))
     const lines = splitLines(page, start, start > 0).lines.slice(-pageLines.value)
-    const entries = lines.map((line) => ({
-      id: Math.random().toString(36).substring(7),
-      offset: line.offset,
-      content: line.content,
-    }))
-    let merged = [...entries, ...logs.value]
+    let merged = [...toEntries(lines), ...logs.value]
     if (merged.length > MAX_LOG_ENTRIES) {
       // Acima do teto, saem as linhas mais novas; o Play relê a partir da última linha mantida.
       merged = merged.slice(0, MAX_LOG_ENTRIES)
@@ -598,7 +584,6 @@ export function useLogStream() {
     canRewind,
     pageLines,
     downloadLog,
-    syntaxHighlight,
     setOnLogEntry,
     getWsState,
     fetchRotationsFor,

@@ -5,7 +5,6 @@ defineProps<{
   filteredLogs: LogEntry[]
   isPlaying: boolean
   hasTarget: boolean
-  syntaxHighlight: (content: string) => string
 }>()
 </script>
 
@@ -34,7 +33,7 @@ defineProps<{
       v-for="log in filteredLogs"
       :key="log.id"
       class="lz-log__line"
-      v-html="syntaxHighlight(log.content)"
+      v-html="log.html"
     />
   </div>
 </template>

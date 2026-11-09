@@ -279,7 +279,6 @@ function createLogStreamState() {
     togglePlay: vi.fn(() => {
       isPlaying.value = !isPlaying.value
     }),
-    syntaxHighlight: (content: string) => content,
     setOnLogEntry: vi.fn(),
     getWsState: () => 1,
     fetchRotationsFor: vi.fn(),
