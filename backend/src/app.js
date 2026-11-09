@@ -56,7 +56,7 @@ function loadTargetTree(targetsPath) {
 
 // Relido a cada request; arquivo ausente, inválido ou valor fora do tipo cai no default.
 function loadConfig(configPath) {
-  let raw = {};
+  let raw;
   try {
     raw = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   } catch {
@@ -131,7 +131,7 @@ export function createApp({
   app.get('/api/targets', (req, res) => {
     try {
       res.json(loadTargetTree(targetsPath));
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Failed to read targets' });
     }
   });
@@ -167,7 +167,7 @@ export function createApp({
         .sort((a, b) => b.date.localeCompare(a.date));
 
       res.json(rotations);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Failed to read rotations' });
     }
   });
@@ -176,7 +176,7 @@ export function createApp({
     let logPath;
     try {
       logPath = resolveLogPath(loadTargetTree(targetsPath), req.params.id, logRoot);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Failed to read targets' });
       return;
     }

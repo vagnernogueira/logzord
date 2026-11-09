@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   logzord:
     # Puxa a imagem publicada no GHCR (ver .github/workflows/docker-publish.yml).
