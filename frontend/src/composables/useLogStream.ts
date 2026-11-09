@@ -92,6 +92,19 @@ export function useLogStream() {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws'
 
+  function apiUrl(...segments: string[]): string {
+    return [API_URL, ...segments.map(encodeURIComponent)].join('/')
+  }
+
+  // GET em /api com segmentos codificados; status fora de 2xx vira erro em vez de dado (#38).
+  async function getJson<T>(...segments: string[]): Promise<T> {
+    const res = await fetch(apiUrl(...segments))
+    if (!res.ok) {
+      throw new Error(`GET /${segments.join('/')} failed with status ${res.status}`)
+    }
+    return res.json()
+  }
+
   const tree = ref<LogTreeNode[]>([])
   const selectedTarget = ref<LogTreeTarget | null>(null)
   const isPlaying = ref(false)
@@ -169,8 +182,7 @@ export function useLogStream() {
 
   async function fetchConfig() {
     try {
-      const res = await fetch(`${API_URL}/config`)
-      const data = await res.json()
+      const data = await getJson<{ pageLines: number }>('config')
       if (Number.isInteger(data?.pageLines) && data.pageLines > 0) {
         pageLines.value = data.pageLines
       }
@@ -181,8 +193,7 @@ export function useLogStream() {
 
   async function fetchTargets() {
     try {
-      const res = await fetch(`${API_URL}/targets`)
-      const data: LogTreeNode[] = await res.json()
+      const data = await getJson<LogTreeNode[]>('targets')
       applyPersistedRotations(data)
       tree.value = data
     } catch (error) {
@@ -245,8 +256,7 @@ export function useLogStream() {
   async function fetchRotationsFor(target: LogTreeTarget) {
     rotationsLoading.value = true
     try {
-      const res = await fetch(`${API_URL}/targets/${target.id}/rotations`)
-      const rotations: LogRotation[] = await res.json()
+      const rotations = await getJson<LogRotation[]>('targets', target.id, 'rotations')
       const addedIds = new Set((target.children ?? []).map((child) => child.id))
       availableRotations.value = rotations.filter((rotation) => !addedIds.has(rotation.id))
     } catch (error) {
@@ -304,7 +314,13 @@ export function useLogStream() {
     }
 
     ws.onmessage = async (event) => {
-      const data = JSON.parse(event.data)
+      let data
+      try {
+        data = JSON.parse(event.data)
+      } catch (error) {
+        console.error('Invalid WS message:', error)
+        return
+      }
       // Mensagem sem streamId (servidor antigo) segue para as guardas de offset, como antes.
       if (data.streamId !== undefined && data.streamId !== streamId) return
 
@@ -509,7 +525,7 @@ export function useLogStream() {
   function downloadLog() {
     if (!selectedTarget.value) return
     const a = document.createElement('a')
-    a.href = `${API_URL}/targets/${encodeURIComponent(selectedTarget.value.id)}/download`
+    a.href = apiUrl('targets', selectedTarget.value.id, 'download')
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
