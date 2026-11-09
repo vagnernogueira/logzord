@@ -10,31 +10,7 @@ permissions:
   packages: read
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
-
-      - name: Lint frontend
-        run: npm run --workspace=frontend lint
-
-      - name: Typecheck frontend
-        run: npm run --workspace=frontend typecheck
-
-      - name: Test frontend
-        run: npm run --workspace=frontend test
-
-      - name: Test backend
-        run: npm run --workspace=backend test
+  validate:
+    uses: ./.github/workflows/validate.yml
+    secrets:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
