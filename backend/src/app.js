@@ -123,7 +123,6 @@ export function createApp({
 } = {}) {
   const app = express();
   app.use(cors());
-  app.use(express.json());
 
   app.get('/api/config', (req, res) => {
     res.json(loadConfig(configPath));
@@ -440,5 +439,3 @@ export function createServer({
 
   return { app, server, wss };
 }
-
-export const { app, server, wss } = createServer();
