@@ -120,7 +120,7 @@ describe('GET /api/targets/:id/download', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toContain('text/plain');
-    expect(response.headers['content-disposition']).toBe('attachment; filename="sample.log"');
+    expect(response.headers['content-disposition']).toBe('attachment; filename=sample.log');
     expect(response.text).toBe('linha 1\nlinha 2\n');
   });
 
@@ -136,7 +136,7 @@ describe('GET /api/targets/:id/download', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toBe('application/gzip');
-    expect(response.headers['content-disposition']).toBe('attachment; filename="sample.log.gz"');
+    expect(response.headers['content-disposition']).toBe('attachment; filename=sample.log.gz');
     expect(zlib.gunzipSync(response.body).equals(content)).toBe(true);
   });
 
@@ -147,7 +147,7 @@ describe('GET /api/targets/:id/download', () => {
     const response = await request(app).get(`/api/targets/${encodeURIComponent('sample::2026-08-21')}/download`);
 
     expect(response.status).toBe(200);
-    expect(response.headers['content-disposition']).toBe('attachment; filename="sample.log.2026-08-21"');
+    expect(response.headers['content-disposition']).toBe('attachment; filename=sample.log.2026-08-21');
     expect(response.text).toBe('older\n');
   });
 
