@@ -25,99 +25,13 @@
   --vscode-badge-foreground: #3b3b3b;
 }
 
-/* Title bar: ícone, filtro e ações (padrão do oka). */
+/* Title bar: ícone e estado de gravação (botão e filtro vêm da casca). */
 
 .title-bar__icon .codicon {
   font-size: 16px;
 }
 
-.lz-filter {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: min(360px, 40vw);
-  height: 22px;
-  padding: 0 2px 0 8px;
-  font-size: 12px;
-  background: rgb(255 255 255 / 12%);
-  border: 1px solid rgb(255 255 255 / 25%);
-  border-radius: 4px;
-}
-
-.lz-filter:focus-within {
-  border-color: var(--vscode-focusBorder);
-}
-
-.lz-filter--invalid,
-.lz-filter--invalid:focus-within {
-  border-color: var(--vscode-errorForeground);
-}
-
-.lz-filter__input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  outline: none;
-}
-
-.lz-filter__input::placeholder {
-  color: inherit;
-  opacity: 0.7;
-}
-
-.lz-filter__toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  color: inherit;
-  cursor: pointer;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 3px;
-}
-
-.lz-filter__toggle:hover {
-  background: var(--vscode-statusBarItem-hoverBackground);
-}
-
-.lz-filter__toggle[aria-pressed="true"] {
-  background: var(--vscode-statusBarItem-hoverBackground);
-  border-color: var(--vscode-statusBar-foreground);
-}
-
-.lz-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  background: none;
-  border: none;
-  border-radius: 4px;
-}
-
-.title-bar .lz-icon-button:hover:not(:disabled) {
-  background: var(--vscode-statusBarItem-hoverBackground);
-}
-
-.lz-icon-button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.lz-icon-button--recording {
+.lz-recording {
   color: var(--vscode-errorForeground);
 }
 

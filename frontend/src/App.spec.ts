@@ -23,8 +23,10 @@ vi.mock('@/composables/useRecording', () => ({
   useRecording: useRecordingMock,
 }))
 
-vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
+vi.mock('@vagnernogueira/vsshellcode/vue', async (importOriginal) => {
   const { defineComponent, h } = await import('vue')
+  const { ShellTitleBarAction, ShellTitleBarSearch, ShellTitleBarSearchToggle } =
+    await importOriginal<typeof import('@vagnernogueira/vsshellcode/vue')>()
 
   type TitleBarMenuItem = { id: string; label: string }
   type ActivityBarItem = { id: string; icon: string; title: string }
@@ -219,6 +221,9 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
 
   return {
     ShellTitleBar,
+    ShellTitleBarAction,
+    ShellTitleBarSearch,
+    ShellTitleBarSearchToggle,
     ShellActivityBar,
     ShellSidebar,
     ShellTree,

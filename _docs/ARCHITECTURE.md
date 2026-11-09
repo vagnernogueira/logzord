@@ -29,7 +29,7 @@ O Logzord adota um estilo de **Monólito Modular** em um monorepo TypeScript. A 
 | Camada | Tecnologia | Justificativa |
 | :--- | :--- | :--- |
 | **Frontend** | Vue.js 3 + Vite | Agilidade no build e reatividade performática. |
-| **Shell de UI** | `@vagnernogueira/vsshellcode` `^1.1.8` | Casca visual estilo VS Code (title bar, activity bar, sidebar, tabs, status bar, command palette) e tema; pacote Vue 3 instalado pelo GitHub Packages. |
+| **Shell de UI** | `@vagnernogueira/vsshellcode` `^1.4.0` | Casca visual estilo VS Code (title bar, activity bar, sidebar, tabs, status bar, command palette) e tema; pacote Vue 3 instalado pelo GitHub Packages. |
 | **UI Kit** | Componentes `Shell*` + `vscode-elements` (via `vsshellcode`) + CSS próprio em `style.css` | A UI se baseia ao máximo na casca; implementação própria só onde ela não cobre (§3.4), com codicons e tokens `--vscode-*`. Sem Tailwind, shadcn-vue ou lucide (removidos na issue #28). |
 | **Backend** | Node.js + Express | Gerenciamento eficiente de I/O assíncrono e Streams. |
 | **Comunicação** | WebSockets (ws) | Streaming bidirecional em tempo real. |
@@ -82,7 +82,7 @@ frontend/src/
 
 ### 3.3 Componentes de interface
 
-- **Title bar (`ShellTitleBar`, slots em `App.vue`):** ícone `codicon-output`; campo de filtro com toggle de regex (padrão substring; ambos case-sensitive; regex inválida não casa nada e marca o campo com o erro), botão play/pause, botões rewind/fast-forward (também nos comandos `stream-rewind`/`stream-fast-forward`; Rewind desabilitado com o buffer no início do arquivo) e toggle de gravação. As ações são botões planos 28×28 com os mesmos codicons de `commands.config.ts` e tooltip por `title` nativo.
+- **Title bar (`ShellTitleBar`, slots em `App.vue`):** ícone `codicon-output`; campo de filtro com toggle de regex (padrão substring; ambos case-sensitive; regex inválida não casa nada e marca o campo com o erro), botão play/pause, botões rewind/fast-forward (também nos comandos `stream-rewind`/`stream-fast-forward`; Rewind desabilitado com o buffer no início do arquivo) e toggle de gravação. Filtro e toggle de regex usam `ShellTitleBarSearch`/`ShellTitleBarSearchToggle`; as ações usam `ShellTitleBarAction` (28×28, mesmos codicons de `commands.config.ts`, tooltip por `title` nativo; gravação com `pressed` e a classe `lz-recording`).
 - **Status bar (`ShellStatusBar`):** estado da conexão WebSocket (esquerda) e `OFFSET` corrente em bytes com `codicon-symbol-ruler` (direita).
 - Cada view da sidebar renderiza o próprio `sidebar__section`/`sidebar__title`.
 - `TargetsSection.vue` (sidebar) exibe a árvore hierárquica de targets com rotações sob demanda.
@@ -94,7 +94,7 @@ frontend/src/
 - **Regra:** a UI se baseia ao máximo no `vsshellcode`, nesta ordem: (1) componentes `Shell*` e classes de `shell.css`; (2) web components do `vscode-elements` 2.5.1 empacotados na casca e registrados por `js/vscode-elements.js` (`vscode-textfield`, `vscode-toolbar-button`, `vscode-button`, `vscode-icon`, `vscode-badge`, `vscode-divider`…); (3) implementação própria em `frontend/src/components/` só onde nenhum dos dois cobrir, com codicons e tokens `--vscode-*`. Um controle genérico que falte na casca vira issue no `vsshellcode` (ex.: controles padrão da title bar, vagnernogueira/vsshellcode#19).
 - **Ícones:** codicons (`css/codicon.css` da casca) em toda a UI.
 - **Uso atual:** `AnalysisSection.vue` usa `vscode-button` e `vscode-badge`; `vite.config.ts` declara as tags `vscode-*` como custom elements. O atributo `icon` dos web components (`vscode-icon`) exige um `<link id="vscode-codicon-stylesheet">` que o app não tem; o codicon vai como `<span class="codicon …">` no slot.
-- **Implementação própria (classes `lz-*` em `frontend/src/style.css`):** o filtro da title bar é um `input` nativo, porque o `vscode-textfield` tem altura fixa de 26px e a barra pede 22px; as ações da title bar são `button` nativos, porque o `vscode-toolbar-button` não aceita `disabled` e mede 22px. Os dois migram para os controles de vagnernogueira/vsshellcode#19 quando forem publicados. Também são próprios o rodapé de rotações da `TargetsSection` (itens de lista de 22px) e o `LogViewer`.
+- **Implementação própria (classes `lz-*` em `frontend/src/style.css`):** o filtro e as ações da title bar vêm da casca desde a 1.4.0 (vagnernogueira/vsshellcode#19); fica aqui só a cor de gravação (`lz-recording`). Também são próprios o rodapé de rotações da `TargetsSection` (itens de lista de 22px) e o `LogViewer`.
 - **Sem Tailwind:** shadcn-vue, radix-vue, `lucide-vue-next` e Tailwind foram removidos na issue #28; sem o preflight, a casca fica com `line-height: normal`.
 
 ### 3.5 Shell oficial, registry e tema
@@ -285,3 +285,8 @@ _docs/
   - **Data:** 2026-11-08
   - **Autor:** IA
   - **Mudanças:** Layout alinhado à casca (issue #28): title bar com input e botões próprios 28×28 de codicons, views com `sidebar__section` próprio, Quadro com `vscode-button`/`vscode-badge`, codicon no `OFFSET`. Remoção de Tailwind (e do preflight que alterava o `line-height` da casca), shadcn-vue, radix-vue e `lucide-vue-next`; `style.css` passa a conter só os estilos `lz-*` e os tokens ausentes no tema (§2, §3.1, §3.3, §3.4, §3.5, §7.2, §8).
+
+- **Versão 1.12**
+  - **Data:** 2026-11-08
+  - **Autor:** IA
+  - **Mudanças:** vsshellcode `^1.4.0`: title bar usa `ShellTitleBarSearch`, `ShellTitleBarSearchToggle` e `ShellTitleBarAction` (vagnernogueira/vsshellcode#19) no lugar do input e dos botões próprios; removidos `.lz-filter*` e `.lz-icon-button*` de `style.css` (§2, §3.4, §3.5).

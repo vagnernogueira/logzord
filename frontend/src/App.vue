@@ -6,6 +6,9 @@ import type { LogRotation, LogTreeTarget } from '@/types'
 import { findTargetById } from '@/lib/logTree'
 import {
   ShellTitleBar,
+  ShellTitleBarAction,
+  ShellTitleBarSearch,
+  ShellTitleBarSearchToggle,
   ShellActivityBar,
   ShellSidebar,
   ShellTabs,
@@ -205,86 +208,56 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
       </template>
 
       <template #search>
-        <div
-          class="lz-filter"
-          :class="{ 'lz-filter--invalid': filterError }"
+        <ShellTitleBarSearch
+          v-model="filterText"
+          placeholder="Filtrar logs..."
+          :error="filterError"
         >
-          <span class="codicon codicon-search" />
-          <input
-            :value="filterText"
-            type="text"
-            class="lz-filter__input"
-            placeholder="Filtrar logs..."
-            :aria-invalid="filterError ? 'true' : undefined"
-            :title="filterError ?? undefined"
-            @input="filterText = ($event.target as HTMLInputElement).value"
-          >
-          <button
-            type="button"
-            class="lz-filter__toggle"
-            title="Usar expressão regular"
-            aria-label="Usar expressão regular"
-            :aria-pressed="filterMode === 'regex'"
-            @click="filterMode = filterMode === 'regex' ? 'substring' : 'regex'"
-          >
-            <span class="codicon codicon-regex" />
-          </button>
-        </div>
+          <template #toggles>
+            <ShellTitleBarSearchToggle
+              icon="regex"
+              title="Usar expressão regular"
+              :pressed="filterMode === 'regex'"
+              @update:pressed="filterMode = $event ? 'regex' : 'substring'"
+            />
+          </template>
+        </ShellTitleBarSearch>
       </template>
 
       <template #actions>
-        <button
-          type="button"
-          class="lz-icon-button"
+        <ShellTitleBarAction
+          :icon="isPlaying ? 'debug-pause' : 'debug-start'"
           :title="isPlaying ? 'Pausar streaming' : 'Iniciar streaming'"
-          :aria-label="isPlaying ? 'Pausar streaming' : 'Iniciar streaming'"
           @click="togglePlay"
-        >
-          <span
-            class="codicon"
-            :class="isPlaying ? 'codicon-debug-pause' : 'codicon-debug-start'"
-          />
-        </button>
-        <button
-          type="button"
-          class="lz-icon-button"
+        />
+        <ShellTitleBarAction
+          icon="debug-reverse-continue"
           title="Retroceder"
-          aria-label="Retroceder"
           :disabled="!canRewind"
           @click="rewind"
-        >
-          <span class="codicon codicon-debug-reverse-continue" />
-        </button>
-        <button
-          type="button"
-          class="lz-icon-button"
+        />
+        <ShellTitleBarAction
+          icon="debug-continue"
           title="Ir para o fim (ao vivo)"
           aria-label="Avançar"
           :disabled="!selectedTarget"
           @click="fastForward"
-        >
-          <span class="codicon codicon-debug-continue" />
-        </button>
-        <button
-          type="button"
-          class="lz-icon-button"
+        />
+        <ShellTitleBarAction
+          icon="cloud-download"
           title="Baixar o arquivo de log (.gz acima de 5MB)"
           aria-label="Baixar log"
           :disabled="!selectedTarget"
           @click="downloadLog"
-        >
-          <span class="codicon codicon-cloud-download" />
-        </button>
-        <button
-          type="button"
-          class="lz-icon-button"
-          :class="{ 'lz-icon-button--recording': isRecording }"
+        />
+        <ShellTitleBarAction
+          icon="record"
+          :class="{ 'lz-recording': isRecording }"
+          :pressed="isRecording"
           :title="isRecording ? 'Parar gravação no Quadro de Análise' : 'Iniciar gravação no Quadro de Análise'"
           :aria-label="isRecording ? 'Parar gravação' : 'Iniciar gravação'"
           @click="toggleRecord"
-        >
-          <span class="codicon codicon-record" />
-        </button>
+        />
       </template>
     </ShellTitleBar>
 
