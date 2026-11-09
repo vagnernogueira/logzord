@@ -30,6 +30,9 @@ jobs:
       - name: Lint frontend
         run: npm run --workspace=frontend lint
 
+      - name: Typecheck frontend
+        run: npm run --workspace=frontend typecheck
+
       - name: Test frontend
         run: npm run --workspace=frontend test
 

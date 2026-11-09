@@ -1,7 +1,8 @@
-import { ref, type PropType } from 'vue'
+import { ref, type PropType, type VNode } from 'vue'
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LogEntry, LogTreeNode, LogTreeTarget } from '@/types'
+import type { LineMatcher } from '@/lib/lineMatcher'
 
 const {
   useLogStreamMock,
@@ -118,7 +119,7 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async (importOriginal) => {
     },
     emits: ['select'],
     setup(props, { emit }) {
-      function renderNode(node: TreeNode) {
+      function renderNode(node: TreeNode): VNode {
         return h('li', { key: node.id }, [
           h(
             'button',
@@ -260,7 +261,7 @@ function createLogStreamState() {
     isPlaying,
     filterText,
     filterMode,
-    lineMatcher: ref({ matches: () => true, error: null }),
+    lineMatcher: ref<LineMatcher>({ matches: () => true, error: null }),
     filterError,
     filteredLogs,
     currentWsOffset,

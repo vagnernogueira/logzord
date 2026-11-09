@@ -10,6 +10,7 @@ export interface LogTreeTarget {
   type: 'target'
   id: string
   label: string
+  icon?: string
   path?: string
   rotationOf?: string
   children?: LogTreeTarget[]

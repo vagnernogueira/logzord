@@ -1,7 +1,7 @@
-import { type PropType } from 'vue'
+import { type PropType, type VNode } from 'vue'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import type { LogTreeNode } from '@/types'
+import type { LogTreeNode, LogTreeTarget } from '@/types'
 
 type TreeNode = { id: string; label: string; icon?: string; open?: boolean; children?: TreeNode[] }
 
@@ -15,7 +15,7 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async () => {
     },
     emits: ['select'],
     setup(props, { emit }) {
-      function renderNode(node: TreeNode) {
+      function renderNode(node: TreeNode): VNode {
         return h('li', { key: node.id }, [
           h(
             'button',
@@ -73,7 +73,7 @@ describe('TargetsSection', () => {
   })
 
   it('requests and lists rotations for the selected target, and emits add-rotation on pick', async () => {
-    const target = tree[0]!
+    const target = tree[0] as LogTreeTarget
     const wrapper = mount(TargetsSection, {
       props: {
         tree,
