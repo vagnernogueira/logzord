@@ -279,7 +279,7 @@ function createLogStreamState() {
     togglePlay: vi.fn(() => {
       isPlaying.value = !isPlaying.value
     }),
-    setOnLogEntry: vi.fn(),
+    setOnLogEntries: vi.fn(),
     getWsState: () => 1,
     fetchRotationsFor: vi.fn(),
     addRotation: vi.fn(),
@@ -290,9 +290,10 @@ function createRecordingState() {
   return {
     isRecording: ref(false),
     recordedCount: ref(0),
+    recordError: ref<string | null>(null),
     toggleRecord: vi.fn(),
     forgetTarget: vi.fn(),
-    recordLine: vi.fn(),
+    recordLines: vi.fn(async () => {}),
     clearRecord: vi.fn(),
     exportRecord: vi.fn(),
   }
@@ -502,9 +503,10 @@ describe('App', () => {
     useRecordingMock.mockReturnValue(recording)
     mountApp()
 
-    const onLogEntry = state.setOnLogEntry.mock.calls[0]![0] as (line: string, offset: number) => void
-    onLogEntry('linha', 7)
+    const onLogEntries = state.setOnLogEntries.mock.calls[0]![0] as (lines: Array<{ content: string, offset: number }>) => void
+    const lines = [{ content: 'linha', offset: 7 }]
+    onLogEntries(lines)
 
-    expect(recording.recordLine).toHaveBeenCalledWith('linha', 7, matches)
+    expect(recording.recordLines).toHaveBeenCalledWith(lines, matches)
   })
 })

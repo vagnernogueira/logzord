@@ -45,7 +45,7 @@ function dropLeadingBytes(value: string, bytes: number): string {
   return bytes > 0 ? utf8Decoder.decode(utf8.encode(value).slice(bytes)) : value
 }
 
-interface ParsedLine {
+export interface ParsedLine {
   content: string
   offset: number
 }
@@ -106,7 +106,7 @@ export function useLogStream() {
   const pageLines = ref(DEFAULT_PAGE_LINES)
 
   let ws: WebSocket | null = null
-  let onLogEntry: ((line: string, offset: number) => void) | null = null
+  let onLogEntries: ((lines: ParsedLine[]) => void) | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let shouldReconnect = true
   // Fragmento final de LOG_CHUNK ainda sem '\n': só vira linha quando o restante chegar (CA2).
@@ -338,9 +338,7 @@ export function useLogStream() {
     if (lines.length === 0) return
     logs.value = [...logs.value, ...toEntries(lines)].slice(-MAX_LOG_ENTRIES)
 
-    if (onLogEntry) {
-      for (const line of lines) onLogEntry(line.content, line.offset)
-    }
+    onLogEntries?.(lines)
   }
 
   async function handleChunk(content: string, end: number) {
@@ -409,9 +407,7 @@ export function useLogStream() {
     }
     logs.value = merged
 
-    if (onLogEntry) {
-      for (const line of lines) onLogEntry(line.content, line.offset)
-    }
+    onLogEntries?.(lines)
 
     void nextTick().then(scrollToTop)
   }
@@ -539,8 +535,9 @@ export function useLogStream() {
     }
   }
 
-  function setOnLogEntry(callback: ((line: string, offset: number) => void) | null) {
-    onLogEntry = callback
+  // Um callback por chunk com todas as suas linhas: a gravação no Quadro faz uma escrita por lote (#37).
+  function setOnLogEntries(callback: ((lines: ParsedLine[]) => void) | null) {
+    onLogEntries = callback
   }
 
   function getWsState(): number | undefined {
@@ -584,7 +581,7 @@ export function useLogStream() {
     canRewind,
     pageLines,
     downloadLog,
-    setOnLogEntry,
+    setOnLogEntries,
     getWsState,
     fetchRotationsFor,
     addRotation,

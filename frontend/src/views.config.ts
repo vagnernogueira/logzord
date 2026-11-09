@@ -11,6 +11,7 @@ export interface ViewPropsContext {
   rotationsLoading: boolean
   recordedCount: number
   isRecording: boolean
+  recordError: string | null
 }
 
 export interface ShellViewConfig extends ShellActivityBarItem {
@@ -36,6 +37,6 @@ export const views: ShellViewConfig[] = [
     icon: 'graph',
     title: 'Análise',
     component: AnalysisSection,
-    props: ({ recordedCount, isRecording }) => ({ recordedCount, isRecording }),
+    props: ({ recordedCount, isRecording, recordError }) => ({ recordedCount, isRecording, recordError }),
   },
 ]

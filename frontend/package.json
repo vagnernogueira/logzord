@@ -15,7 +15,7 @@
   "dependencies": {
     "@vagnernogueira/vsshellcode": "^1.4.0",
     "@vueuse/core": "^14.2.1",
-    "dexie": "^3.2.4",
+    "dexie": "^4.4.7",
     "vue": "^3.5.45"
   },
   "devDependencies": {
@@ -26,6 +26,7 @@
     "@vue/test-utils": "^2.5.1",
     "eslint": "^10.1.0",
     "eslint-plugin-vue": "^10.8.0",
+    "fake-indexeddb": "^6.2.8",
     "globals": "^17.14.0",
     "jsdom": "^31.0.0",
     "typescript": "~6.0.3",

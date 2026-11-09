@@ -121,6 +121,14 @@
   color: var(--vscode-errorForeground);
 }
 
+.lz-analysis__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  color: var(--vscode-errorForeground);
+  word-break: break-word;
+}
+
 .lz-analysis__actions {
   display: flex;
   gap: 8px;

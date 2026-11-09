@@ -43,7 +43,7 @@ const {
   fastForward,
   canRewind,
   downloadLog,
-  setOnLogEntry,
+  setOnLogEntries,
   getWsState,
   fetchRotationsFor,
   addRotation,
@@ -52,15 +52,16 @@ const {
 const {
   isRecording,
   recordedCount,
+  recordError,
   toggleRecord,
   forgetTarget: forgetRecordState,
-  recordLine,
+  recordLines,
   clearRecord,
   exportRecord,
 } = useRecording(computed(() => selectedTarget.value?.id ?? null))
 
-setOnLogEntry((line: string, offset: number) => {
-  recordLine(line, offset, lineMatcher.value.matches)
+setOnLogEntries((lines) => {
+  void recordLines(lines, lineMatcher.value.matches)
 })
 
 const wsState = computed(() => getWsState())
@@ -82,6 +83,7 @@ const viewPropsContext = computed(() => ({
   rotationsLoading: rotationsLoading.value,
   recordedCount: recordedCount.value,
   isRecording: isRecording.value,
+  recordError: recordError.value,
 }))
 const activeViewProps = computed(() => activeView.value.props(viewPropsContext.value))
 const openTargetIds = ref<string[]>([])

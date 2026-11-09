@@ -2,7 +2,7 @@ import { defineComponent, h, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { addMock, records, pageReads, gzipBlobMock, liveQueryMock, liveCount } = vi.hoisted(() => {
+const { bulkAddMock, records, pageReads, gzipBlobMock, liveQueryMock, liveCount } = vi.hoisted(() => {
   // Observable mínimo: simula o liveQuery do Dexie, que reemite a contagem a cada escrita (de qualquer aba).
   const liveCount = {
     observers: new Set<{ next: (value: number) => void }>(),
@@ -11,7 +11,7 @@ const { addMock, records, pageReads, gzipBlobMock, liveQueryMock, liveCount } = 
     },
   }
   return {
-    addMock: vi.fn(),
+    bulkAddMock: vi.fn(),
     // Conteúdo do Quadro para o export; ids crescentes como o '++id' do Dexie.
     records: [] as Array<{ id: number, content: string }>,
     pageReads: { count: 0 },
@@ -36,8 +36,7 @@ vi.mock('dexie', () => ({
     }
     table() {
       return {
-        add: addMock,
-        count: async () => addMock.mock.calls.length,
+        bulkAdd: bulkAddMock,
         // where('id').above(x).limit(n).toArray(): a leitura paginada do export.
         where: () => ({
           above: (lastId: number) => ({
@@ -69,7 +68,7 @@ const TestHarness = defineComponent({
 
 describe('useRecording', () => {
   beforeEach(() => {
-    addMock.mockReset()
+    bulkAddMock.mockReset()
     liveCount.observers.clear()
     activeTargetId.value = null
   })
@@ -82,6 +81,8 @@ describe('useRecording', () => {
     expect(recording!.isRecording.value).toBe(false)
   })
 
+  const line = (content: string, offset: number) => ({ content, offset })
+
   it('grava somente enquanto a aba que ativou a gravação está em foco', async () => {
     mount(TestHarness)
     activeTargetId.value = 'app'
@@ -90,26 +91,55 @@ describe('useRecording', () => {
 
     activeTargetId.value = 'worker'
     expect(recording!.isRecording.value).toBe(false)
-    await recording!.recordLine('linha do worker', 10, () => true)
-    expect(addMock).not.toHaveBeenCalled()
+    await recording!.recordLines([line('linha do worker', 10)], () => true)
+    expect(bulkAddMock).not.toHaveBeenCalled()
 
     activeTargetId.value = 'app'
-    await recording!.recordLine('linha do app', 20, () => true)
+    await recording!.recordLines([line('linha do app', 20)], () => true)
     await flushPromises()
-    expect(addMock).toHaveBeenCalledWith({ content: 'linha do app', offset: 20 })
+    expect(bulkAddMock).toHaveBeenCalledWith([{ content: 'linha do app', offset: 20 }])
   })
 
   it('grava somente as linhas aceitas pelo matcher do filtro', async () => {
     mount(TestHarness)
     activeTargetId.value = 'app'
     recording!.toggleRecord()
-    const matches = (line: string) => line.startsWith('ERROR')
+    const matches = (content: string) => content.startsWith('ERROR')
 
-    await recording!.recordLine('INFO ok', 1, matches)
-    await recording!.recordLine('ERROR falhou', 2, matches)
+    await recording!.recordLines([line('INFO ok', 1), line('ERROR falhou', 2)], matches)
+    await recording!.recordLines([line('INFO só', 3)], matches)
 
-    expect(addMock).toHaveBeenCalledTimes(1)
-    expect(addMock).toHaveBeenCalledWith({ content: 'ERROR falhou', offset: 2 })
+    expect(bulkAddMock).toHaveBeenCalledTimes(1)
+    expect(bulkAddMock).toHaveBeenCalledWith([{ content: 'ERROR falhou', offset: 2 }])
+  })
+
+  it('um chunk de N linhas vira uma única escrita', async () => {
+    mount(TestHarness)
+    activeTargetId.value = 'app'
+    recording!.toggleRecord()
+    const chunk = Array.from({ length: 500 }, (_, i) => line(`l${i}`, i))
+
+    await recording!.recordLines(chunk, () => true)
+
+    expect(bulkAddMock).toHaveBeenCalledTimes(1)
+    expect(bulkAddMock.mock.calls[0]![0]).toHaveLength(500)
+  })
+
+  it('falha da escrita não rejeita: vira log e recordError, limpo na próxima escrita', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mount(TestHarness)
+    activeTargetId.value = 'app'
+    recording!.toggleRecord()
+    bulkAddMock.mockRejectedValueOnce(new Error('QuotaExceededError'))
+
+    await expect(recording!.recordLines([line('x', 1)], () => true)).resolves.toBeUndefined()
+    expect(recording!.recordError.value).toBe('QuotaExceededError')
+    expect(consoleError).toHaveBeenCalled()
+
+    bulkAddMock.mockResolvedValueOnce(undefined)
+    await recording!.recordLines([line('y', 2)], () => true)
+    expect(recording!.recordError.value).toBeNull()
+    consoleError.mockRestore()
   })
 
   it('recordedCount acompanha a contagem emitida pelo liveQuery, inclusive escritas de outra aba', () => {
