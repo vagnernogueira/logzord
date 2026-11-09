@@ -25,7 +25,7 @@ O visual é a casca `@vagnernogueira/vsshellcode` (estilo VS Code); a fonte de v
 
 ## Validação
 
-- Por pacote alterado, nesta ordem: `npm --workspace=<frontend|backend> run lint`, depois `run test`; ao fim, `npm --workspace=frontend run build` para mudanças de frontend.
+- Por pacote alterado, nesta ordem: `npm --workspace=<frontend|backend> run lint`, depois `run typecheck` (só frontend; `vue-tsc` sobre `tsconfig.json` e `tsconfig.spec.json`) e `run test`; ao fim, `npm --workspace=frontend run build` para mudanças de frontend.
 - Imagem: `make build` valida que builda, sem subi-la.
 - Verificar por build, lint e testes. Para o teste final de UX, use o Playwright instalado globalmente no SO (`playwright@1.65.0` via `npm i -g`, Node do nvm) e o Chromium headless correspondente (`chromium_headless_shell-1254` em `~/.cache/ms-playwright`):
   - O projeto não declara Playwright como dependência, então `npx playwright` resolve para o pacote global.

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run typecheck && vite build",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.spec.json",
     "preview": "vite preview",
     "lint": "eslint src",
     "test": "vitest run",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vitest/coverage-v8": "^4.1.2",
     "@vue/test-utils": "^2.5.1",
@@ -26,8 +28,10 @@
     "eslint-plugin-vue": "^10.8.0",
     "globals": "^17.14.0",
     "jsdom": "^29.0.1",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.57.2",
     "vite": "^5.0.0",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "vue-tsc": "^3.3.14"
   }
 }
