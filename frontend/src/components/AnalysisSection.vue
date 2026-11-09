@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
-
 defineProps<{
   recordedCount: number
   isRecording: boolean
@@ -14,42 +11,38 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="p-2">
-    <Card class="bg-card/50 border-border backdrop-blur-sm">
-      <CardHeader class="p-4 pb-2">
-        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Quadro de Análise
-        </CardTitle>
-      </CardHeader>
-      <CardContent class="px-4 pb-2">
-        <p class="text-2xl font-bold text-foreground mb-2">
-          {{ recordedCount }} <span class="text-sm font-normal text-muted-foreground">linhas</span>
-        </p>
-        <p
+  <div class="sidebar__section lz-view">
+    <div class="sidebar__title">
+      Análise
+    </div>
+    <div class="lz-analysis">
+      <div class="lz-analysis__header">
+        Quadro de Análise
+      </div>
+      <div class="lz-analysis__count">
+        <vscode-badge>{{ recordedCount }}</vscode-badge>
+        <span>linhas</span>
+        <span
           v-if="isRecording"
-          class="text-xs text-destructive"
+          class="lz-analysis__recording"
         >
+          <span class="codicon codicon-record" />
           Gravando...
-        </p>
-      </CardContent>
-      <CardFooter class="px-4 pb-4 pt-0 flex space-x-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          class="flex-1 text-xs border border-border"
-          @click="emit('export-record')"
-        >
+        </span>
+      </div>
+      <div class="lz-analysis__actions">
+        <vscode-button @click="emit('export-record')">
+          <span class="codicon codicon-export" />
           Exportar
-        </Button>
-        <Button
-          variant="destructive"
-          size="sm"
-          class="flex-1 text-xs border border-destructive/50"
+        </vscode-button>
+        <vscode-button
+          secondary
           @click="emit('clear-record')"
         >
+          <span class="codicon codicon-clear-all" />
           Limpar
-        </Button>
-      </CardFooter>
-    </Card>
+        </vscode-button>
+      </div>
+    </div>
   </div>
 </template>

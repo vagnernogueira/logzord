@@ -30,7 +30,7 @@ O Logzord adota um estilo de **Monólito Modular** em um monorepo TypeScript. A 
 | :--- | :--- | :--- |
 | **Frontend** | Vue.js 3 + Vite | Agilidade no build e reatividade performática. |
 | **Shell de UI** | `@vagnernogueira/vsshellcode` `^1.1.8` | Casca visual estilo VS Code (title bar, activity bar, sidebar, tabs, status bar, command palette) e tema; pacote Vue 3 instalado pelo GitHub Packages. |
-| **UI Kit** | Componentes `Shell*` + `vscode-elements` (via `vsshellcode`); shadcn-vue + radix-vue + Tailwind como legado | A UI se baseia ao máximo na casca; implementação própria só onde ela não cobre (§3.4). shadcn/lucide ainda servem a title bar e o Quadro, em migração (issue #28). |
+| **UI Kit** | Componentes `Shell*` + `vscode-elements` (via `vsshellcode`) + CSS próprio em `style.css` | A UI se baseia ao máximo na casca; implementação própria só onde ela não cobre (§3.4), com codicons e tokens `--vscode-*`. Sem Tailwind, shadcn-vue ou lucide (removidos na issue #28). |
 | **Backend** | Node.js + Express | Gerenciamento eficiente de I/O assíncrono e Streams. |
 | **Comunicação** | WebSockets (ws) | Streaming bidirecional em tempo real. |
 | **Persistência** | Dexie.js (IndexedDB) | Abstração robusta para o Quadro de Análise e configs. |
@@ -54,21 +54,19 @@ frontend/src/
 │   ├── AnalysisSection.vue
 │   ├── LogViewer.vue
 │   ├── TargetsSection.vue
-│   ├── TargetsSection.spec.ts
-│   └── ui/
+│   └── TargetsSection.spec.ts
 ├── composables/
 │   ├── useLogStream.ts
 │   ├── useLogStream.spec.ts
 │   └── useRecording.ts
 ├── lib/
 │   ├── lineMatcher.ts
-│   ├── logTree.ts
-│   └── utils.ts
+│   └── logTree.ts
 └── types/
     └── index.ts
 ```
 
-`useRecording.ts` cria o próprio Dexie/IndexedDB (`LogzordAnalysisDB`, tabela `recordedLogs`). `lib/lineMatcher.ts` (`makeLineMatcher`) é a fonte única do critério de filtro, usada pela tela (`filteredLogs`) e pelo Quadro (`recordLine`). `lib/utils.ts` concentra helpers dos componentes `ui/` (padrão `shadcn-vue`); `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
+`useRecording.ts` cria o próprio Dexie/IndexedDB (`LogzordAnalysisDB`, tabela `recordedLogs`). `lib/lineMatcher.ts` (`makeLineMatcher`) é a fonte única do critério de filtro, usada pela tela (`filteredLogs`) e pelo Quadro (`recordLine`). `lib/logTree.ts` busca nós na árvore de targets (`findTargetById`, `firstTarget`) e a converte para `ShellTreeNode` (`toShellTreeNodes`). Testes de componente ficam colocados junto ao arquivo testado (`*.spec.ts`); testes de integração do backend ficam em `backend/src/__tests__/integration/`.
 
 ### 3.2 Fluxo de dados
 
@@ -84,8 +82,9 @@ frontend/src/
 
 ### 3.3 Componentes de interface
 
-- **Title bar (`ShellTitleBar`, slots em `App.vue`):** campo de filtro com toggle de regex (padrão substring; ambos case-sensitive; regex inválida não casa nada e marca o campo com o erro), botão play/pause, botões rewind/fast-forward (também nos comandos `stream-rewind`/`stream-fast-forward`; Rewind desabilitado com o buffer no início do arquivo) e toggle de gravação.
-- **Status bar (`ShellStatusBar`):** estado da conexão WebSocket (esquerda) e `OFFSET` corrente em bytes (direita).
+- **Title bar (`ShellTitleBar`, slots em `App.vue`):** ícone `codicon-output`; campo de filtro com toggle de regex (padrão substring; ambos case-sensitive; regex inválida não casa nada e marca o campo com o erro), botão play/pause, botões rewind/fast-forward (também nos comandos `stream-rewind`/`stream-fast-forward`; Rewind desabilitado com o buffer no início do arquivo) e toggle de gravação. As ações são botões planos 28×28 com os mesmos codicons de `commands.config.ts` e tooltip por `title` nativo.
+- **Status bar (`ShellStatusBar`):** estado da conexão WebSocket (esquerda) e `OFFSET` corrente em bytes com `codicon-symbol-ruler` (direita).
+- Cada view da sidebar renderiza o próprio `sidebar__section`/`sidebar__title`.
 - `TargetsSection.vue` (sidebar) exibe a árvore hierárquica de targets com rotações sob demanda.
 - `AnalysisSection.vue` (sidebar) mostra o `Quadro de Análise`, com ações de exportação e limpeza do buffer gravado.
 - `LogViewer.vue` (área do editor) renderiza o fluxo filtrado, aplica destaque simples por conteúdo e mostra estados vazios quando não há logs.
@@ -94,14 +93,16 @@ frontend/src/
 
 - **Regra:** a UI se baseia ao máximo no `vsshellcode`, nesta ordem: (1) componentes `Shell*` e classes de `shell.css`; (2) web components do `vscode-elements` 2.5.1 empacotados na casca e registrados por `js/vscode-elements.js` (`vscode-textfield`, `vscode-toolbar-button`, `vscode-button`, `vscode-icon`, `vscode-badge`, `vscode-divider`…); (3) implementação própria em `frontend/src/components/` só onde nenhum dos dois cobrir, com codicons e tokens `--vscode-*`. Um controle genérico que falte na casca vira issue no `vsshellcode` (ex.: controles padrão da title bar, vagnernogueira/vsshellcode#19).
 - **Ícones:** codicons (`css/codicon.css` da casca) em toda a UI.
-- **Legado em migração (issue #28):** `frontend/src/components/ui/` segue o padrão do `shadcn-vue` sobre `radix-vue` (`Button`, `Card`, `Input`, `Badge`, `Separator`, `Tooltip`, `ScrollArea`); hoje `App.vue` (title bar) consome `Button`, `Input` e `Tooltip` com ícones `lucide-vue-next`, e `AnalysisSection.vue` consome `Card` e `Button`. Não ampliar esse uso; o Tailwind preflight ainda afeta o `line-height` da casca.
+- **Uso atual:** `AnalysisSection.vue` usa `vscode-button` e `vscode-badge`; `vite.config.ts` declara as tags `vscode-*` como custom elements. O atributo `icon` dos web components (`vscode-icon`) exige um `<link id="vscode-codicon-stylesheet">` que o app não tem; o codicon vai como `<span class="codicon …">` no slot.
+- **Implementação própria (classes `lz-*` em `frontend/src/style.css`):** o filtro da title bar é um `input` nativo, porque o `vscode-textfield` tem altura fixa de 26px e a barra pede 22px; as ações da title bar são `button` nativos, porque o `vscode-toolbar-button` não aceita `disabled` e mede 22px. Os dois migram para os controles de vagnernogueira/vsshellcode#19 quando forem publicados. Também são próprios o rodapé de rotações da `TargetsSection` (itens de lista de 22px) e o `LogViewer`.
+- **Sem Tailwind:** shadcn-vue, radix-vue, `lucide-vue-next` e Tailwind foram removidos na issue #28; sem o preflight, a casca fica com `line-height: normal`.
 
 ### 3.5 Shell oficial, registry e tema
 
 - `frontend/package.json` depende de `@vagnernogueira/vsshellcode` na faixa `^1.1.8`.
 - O pacote é consumido pelo registry do GitHub Packages. O `.npmrc` na raiz do workspace direciona o escopo `@vagnernogueira` para `https://npm.pkg.github.com` e usa `${GITHUB_TOKEN}` como token de instalação; nenhum token é versionado. O `make build` grava o token em um arquivo temporário com permissões restritas e o monta como segredo apenas durante o build do frontend; o token não é interpolado no Compose nem persistido em uma layer da imagem.
 - `frontend/src/main.ts` importa `css/theme.css`, `css/shell.css`, `css/codicon.css` e `js/vscode-elements.js` de `@vagnernogueira/vsshellcode` antes de `frontend/src/style.css`.
-- O bridging de cor adotado na Fase 6 usa VS Code → Tailwind: as variáveis `--vscode-*` fornecidas pelo shell são a fonte única, e `frontend/src/style.css` mapeia os tokens semânticos do Tailwind/shadcn para elas. `tailwind.config.js` preserva utilitários de opacidade com `color-mix`. O bridging existe para o legado shadcn (§3.4) e sai com ele (issue #28).
+- As variáveis `--vscode-*` do `theme.css` da casca são a fonte única de cor. `frontend/src/style.css` só completa os tokens que o tema não define (`editorWarning`/`editorInfo` para o realce de níveis, `button-secondary*` e `badge-*` para os `vscode-elements`), com os valores Dark+ em `:root`/`[data-theme="dark"]` e Light+ em `[data-theme="light"]`.
 - `pilot/vsshellcode-integration` é um branch local-only do piloto, superseded pela adoção do pacote; o destino é descartá-lo após o merge, conforme decisão do humano. Esta sessão não remove o branch.
 
 ### 3.6 CI/CD (`.github/workflows/`)
@@ -167,7 +168,7 @@ _docs/
 
 - [ADR-001 — Estratégia de Retomada de Stream (Pausa/Play)](./decisoes/ADR-001-resume-offset.md)
 - **Shell oficial:** o visual do Logzord é a casca `@vagnernogueira/vsshellcode` (estilo VS Code), adotada em substituição ao layout próprio anterior (`AppSidebar`, `LogToolbar`, `StatusBar`). Consumir o pacote como dependência do frontend, em vez de copiar CSS ou manter componentes shell ad-hoc; novos elementos de UI entram como view da sidebar (`views.config.ts`), slot da title bar, item da status bar ou comando da palette.
-- **Fonte de cor:** manter o tema VS Code do shell como fonte única; implementação própria usa `--vscode-*` direto. Os tokens Tailwind/shadcn derivados por bridging valem só para o legado em migração (issue #28).
+- **Fonte de cor:** manter o tema VS Code do shell como fonte única; implementação própria usa `--vscode-*` direto.
 - **Controles de UI:** casca primeiro (componentes `Shell*`, depois `vscode-elements` empacotado), implementação própria só onde ela não cobre (§3.4). Substitui a adoção de shadcn-vue/lucide como UI kit.
 - **Persistência do Quadro de Análise:** o Quadro (`LogzordAnalysisDB`) persiste no IndexedDB do browser, é compartilhado entre as abas da mesma origem e só zera pelo botão Limpar ou pela limpeza dos dados do site (decisão de produto, issue #22). `recordedCount` vem de `liveQuery` do Dexie, que reemite a contagem a cada escrita, inclusive de outra aba. Não se chama `navigator.storage.persist()`: evita o prompt de permissão do Firefox, ao custo de o storage ser *best-effort* (ver §7.3). O export lê o Quadro em páginas de 10 mil linhas pela chave primária e monta o arquivo como `Blob` em partes, sem string única em memória (issue #24); a regra de gzip acima de 5MB segue valendo.
 - **Buffer de logs:** até 2000 linhas por aba em `shallowRef`, substituído inteiro uma vez por `LOG_CHUNK` (entradas imutáveis; mutar no lugar não dispara reatividade). Sem virtualização: a medição da issue #24 mostrou que o custo vinha do `push`+`shift` por linha no array reativo (O(n) por linha com o buffer cheio), não do DOM.
@@ -195,7 +196,7 @@ _docs/
 | `frontend/package.json` | Dependências e scripts do frontend, incluindo `@vagnernogueira/vsshellcode` |
 | `.npmrc` | Registry scoped do GitHub Packages e referência ao `GITHUB_TOKEN` |
 | `frontend/src/main.ts` | Imports globais do tema, shell, codicon e web components do pacote antes do CSS da aplicação |
-| `frontend/src/style.css` | Bridging dos tokens `--vscode-*` para os tokens semânticos Tailwind/shadcn |
+| `frontend/src/style.css` | Estilos próprios (`lz-*`) onde a casca não cobre e tokens `--vscode-*` ausentes no tema |
 | `frontend/src/views.config.ts` | Catálogo declarativo das views da sidebar (itens da activity bar) |
 | `frontend/src/lib/lineMatcher.ts` | Critério de filtro (substring/regex) compartilhado entre tela e Quadro de Análise |
 | `frontend/src/lib/logTree.ts` | Busca na árvore de targets e conversão para `ShellTreeNode` |
@@ -279,3 +280,8 @@ _docs/
   - **Data:** 2026-11-08
   - **Autor:** IA
   - **Mudanças:** Regra de UI: basear ao máximo no `vsshellcode` (componentes `Shell*`, depois `vscode-elements` empacotado) e usar implementação própria só onde a casca não cobrir, com codicons e tokens `--vscode-*` (§2, §3.4, §3.5, §7.2). shadcn-vue, radix-vue e `lucide-vue-next` passam a legado em migração (issue #28); controles padrão da title bar propostos na casca (vagnernogueira/vsshellcode#19).
+
+- **Versão 1.11**
+  - **Data:** 2026-11-08
+  - **Autor:** IA
+  - **Mudanças:** Layout alinhado à casca (issue #28): title bar com input e botões próprios 28×28 de codicons, views com `sidebar__section` próprio, Quadro com `vscode-button`/`vscode-badge`, codicon no `OFFSET`. Remoção de Tailwind (e do preflight que alterava o `line-height` da casca), shadcn-vue, radix-vue e `lucide-vue-next`; `style.css` passa a conter só os estilos `lz-*` e os tokens ausentes no tema (§2, §3.1, §3.3, §3.4, §3.5, §7.2, §8).
