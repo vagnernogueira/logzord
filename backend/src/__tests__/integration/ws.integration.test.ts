@@ -306,6 +306,30 @@ describe('WebSocket log streaming', () => {
     expect(chunk.offset).toBe(15);
   });
 
+  it('holds a partial multibyte UTF-8 character until the writer completes it', async () => {
+    const euro = Buffer.from('€', 'utf8');
+    testServer = await createTestServer(Buffer.concat([Buffer.from('abc\n'), euro.subarray(0, 2)]));
+    ws = await openWebSocket(testServer.url);
+
+    const chunks = [];
+    ws.on('message', (rawMessage) => {
+      const message = JSON.parse(rawMessage.toString());
+      if (message.type === 'LOG_CHUNK') chunks.push(message);
+    });
+
+    const firstRead = waitForStreamEnd(ws);
+    ws.send(JSON.stringify({ type: 'START_STREAM', targetId: 'sample', offset: 0 }));
+    await firstRead;
+    expect(chunks).toEqual([{ type: 'LOG_CHUNK', content: 'abc\n', offset: 4 }]);
+
+    fs.appendFileSync(testServer.logPath, Buffer.concat([euro.subarray(2), Buffer.from('\n')]));
+    await waitForMessage(ws, (message) => message.type === 'STREAM_END');
+
+    const fileContent = fs.readFileSync(testServer.logPath);
+    expect(chunks.map((chunk) => chunk.content).join('')).toBe(fileContent.toString('utf8'));
+    expect(chunks.at(-1).offset).toBe(fileContent.length);
+  });
+
   it('never moves before the client offset when fromEnd is given', async () => {
     testServer = await createTestServer('aaaa\nbbbb\ncccc\n');
     ws = await openWebSocket(testServer.url);
