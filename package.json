@@ -1,6 +1,6 @@
 {
   "name": "logzord",
-  "version": "1.2.46",
+  "version": "1.2.47",
   "description": "Logzord — real-time log viewer (Vue 3 + Node.js streaming)",
   "private": true,
   "workspaces": [
