@@ -1,16 +1,43 @@
 <script setup lang="ts">
-import type { LogEntry } from '@/types'
+import { ref } from 'vue'
+import type { LogEntry, LogViewport } from '@/types'
 
 defineProps<{
   filteredLogs: LogEntry[]
   isPlaying: boolean
   hasTarget: boolean
 }>()
+
+// Folga em px para considerar a visão "no fim" (scrollTop fracionário, zoom).
+const STICK_TO_BOTTOM_THRESHOLD = 8
+
+const container = ref<HTMLElement | null>(null)
+
+function isAtBottom(): boolean {
+  const el = container.value
+  if (!el) return true
+  return el.scrollHeight - el.clientHeight - el.scrollTop <= STICK_TO_BOTTOM_THRESHOLD
+}
+
+function scrollToBottom() {
+  if (container.value) {
+    container.value.scrollTop = container.value.scrollHeight
+  }
+}
+
+function scrollToTop() {
+  if (container.value) {
+    container.value.scrollTop = 0
+  }
+}
+
+defineExpose<LogViewport>({ isAtBottom, scrollToBottom, scrollToTop })
 </script>
 
 <template>
   <div
     id="log-container"
+    ref="container"
     class="lz-log"
   >
     <div

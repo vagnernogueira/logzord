@@ -1,8 +1,17 @@
-import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget } from '@/types'
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick, type Ref } from 'vue'
+import type { LogEntry, LogRotation, LogTreeNode, LogTreeTarget, LogViewport } from '@/types'
 import { findTargetById } from '@/lib/logTree'
 import { makeLineMatcher, type FilterMode } from '@/lib/lineMatcher'
 import { syntaxHighlight } from '@/lib/syntaxHighlight'
+import {
+  byteLength,
+  routeChunk,
+  splitLines,
+  takeLeadingBytes,
+  type NavigationState,
+  type ParsedLine,
+} from '@/lib/logChunks'
+import { useLogSocket } from '@/composables/useLogSocket'
 
 const ROTATIONS_STORAGE_KEY = 'logzord:rotations'
 
@@ -25,46 +34,11 @@ function savePersistedRotations(map: PersistedRotations) {
   }
 }
 
-const utf8 = new TextEncoder()
-const utf8Decoder = new TextDecoder()
-
 const MAX_LOG_ENTRIES = 2000
 const DEFAULT_PAGE_LINES = 50
 // Estimativa de bytes/linha quando o buffer está vazio; a página é lida com folga de 2× e cortada em N linhas.
 const DEFAULT_LINE_BYTES = 200
 const PAGE_BYTES_MARGIN = 2
-// Folga em px para considerar a visão "no fim" (scrollTop fracionário, zoom).
-const STICK_TO_BOTTOM_THRESHOLD = 8
-
-function byteLength(value: string): number {
-  return utf8.encode(value).length
-}
-
-// Remove os primeiros `bytes` bytes do texto (o trecho que já foi recebido).
-function dropLeadingBytes(value: string, bytes: number): string {
-  return bytes > 0 ? utf8Decoder.decode(utf8.encode(value).slice(bytes)) : value
-}
-
-export interface ParsedLine {
-  content: string
-  offset: number
-}
-
-// Separa o texto em linhas completas com o byte final de cada uma; o resto sem '\n' volta como pending.
-// dropFirst descarta a primeira linha, parcial quando a leitura começa no meio dela (Rewind/FF).
-function splitLines(text: string, textStart: number, dropFirst = false) {
-  const parts = text.split('\n')
-  const pending = parts.pop() ?? ''
-  const lines: ParsedLine[] = []
-  let lineEndOffset = textStart
-  parts.forEach((line, index) => {
-    lineEndOffset += byteLength(line) + 1
-    if (dropFirst && index === 0) return
-    if (!line.trim()) return
-    lines.push({ content: line, offset: lineEndOffset })
-  })
-  return { lines, pending }
-}
 
 // Contador monotônico: ids únicos como :key do v-for, inclusive entre abas (#36).
 let nextEntryId = 0
@@ -79,16 +53,8 @@ function toEntries(lines: ParsedLine[]): LogEntry[] {
   }))
 }
 
-type NavigationState =
-  | { kind: 'live' }
-  // Rewind: lê [start, end) e pausa; end é o início do buffer atual.
-  | { kind: 'rewind', start: number, end: number, text: string }
-  // Fast Forward antes de o servidor revelar se saltou ou continuou do offset atual.
-  | { kind: 'fastForward' }
-  // Fast Forward com salto: acumula a cauda até o STREAM_END e só então substitui o buffer.
-  | { kind: 'fastForwardJump', start: number, end: number, text: string }
-
-export function useLogStream() {
+// viewport: área de scroll do log (LogViewer exposto por template ref); sem ela, o stream segue sem rolar.
+export function useLogStream(viewport: Ref<LogViewport | null> = ref(null)) {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws'
 
@@ -113,19 +79,14 @@ export function useLogStream() {
   const filterText = ref('')
   const filterMode = ref<FilterMode>('substring')
   const currentWsOffset = ref(0)
-  const wsState = ref<WebSocket['readyState']>(WebSocket.CLOSED)
   const availableRotations = ref<LogRotation[]>([])
   const rotationsLoading = ref(false)
   const pageLines = ref(DEFAULT_PAGE_LINES)
 
-  let ws: WebSocket | null = null
   let onLogEntries: ((lines: ParsedLine[]) => void) | null = null
-  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  let shouldReconnect = true
   // Fragmento final de LOG_CHUNK ainda sem '\n': só vira linha quando o restante chegar (CA2).
   let pendingLine = ''
-  // Byte do arquivo onde começa o próximo conteúdo inédito; null descarta chunks (pausado).
-  // Chunks de streams anteriores ainda em voo trazem bytes reais do arquivo: sobreposição é recortada, lacuna é descartada.
+  // Guardas de offset (ver StreamCursor em lib/logChunks).
   let expectedOffset: number | null = null
   let navigation: NavigationState = { kind: 'live' }
   // Id do último START_STREAM: o servidor o devolve em LOG_CHUNK/STREAM_END/ERROR e mensagens de outro
@@ -282,50 +243,18 @@ export function useLogStream() {
     savePersistedRotations(persisted)
   }
 
-  function clearReconnectTimer() {
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer)
-      reconnectTimer = null
-    }
-  }
-
-  function scheduleReconnect() {
-    if (!shouldReconnect || reconnectTimer) {
-      return
-    }
-
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null
-      connectWebSocket()
-    }, 5000)
-  }
-
-  function connectWebSocket() {
-    clearReconnectTimer()
-    ws = new WebSocket(WS_URL)
-    wsState.value = ws.readyState
-
-    ws.onopen = () => {
-      console.log('Connected to WS')
-      wsState.value = ws?.readyState ?? WebSocket.OPEN
+  const { wsState, isOpen, send, connect, disconnect } = useLogSocket(WS_URL, {
+    onOpen: () => {
       if (isPlaying.value) {
         startStream()
       }
-    }
-
-    ws.onmessage = async (event) => {
-      let data
-      try {
-        data = JSON.parse(event.data)
-      } catch (error) {
-        console.error('Invalid WS message:', error)
-        return
-      }
+    },
+    onMessage: async (data) => {
       // Mensagem sem streamId (servidor antigo) segue para as guardas de offset, como antes.
       if (data.streamId !== undefined && data.streamId !== streamId) return
 
       if (data.type === 'LOG_CHUNK') {
-        await handleChunk(data.content, data.offset)
+        await handleChunk(data.content ?? '', data.offset ?? 0)
       } else if (data.type === 'STREAM_END') {
         // Fim da leitura atual, não do stream: o backend segue em polling do arquivo, então o play continua.
         // O Rewind não conclui aqui: um STREAM_END do stream anterior pode chegar antes da página; ele termina ao alcançar o início do buffer.
@@ -336,18 +265,8 @@ export function useLogStream() {
         console.error('Server error:', data.message)
         setPlaying(false)
       }
-    }
-
-    ws.onclose = () => {
-      console.log('Disconnected from WS')
-      wsState.value = ws?.readyState ?? WebSocket.CLOSED
-      scheduleReconnect()
-    }
-
-    ws.onerror = () => {
-      wsState.value = ws?.readyState ?? WebSocket.CLOSED
-    }
-  }
+    },
+  })
 
   // Uma atribuição por chunk: push+shift por linha num array reativo custava O(n) por linha com o buffer cheio (#24).
   function appendLines(lines: ParsedLine[]) {
@@ -358,38 +277,17 @@ export function useLogStream() {
   }
 
   async function handleChunk(content: string, end: number) {
-    if (expectedOffset === null) return
-    const start = end - byteLength(content)
+    const routed = routeChunk({ expectedOffset, navigation }, content, end)
+    expectedOffset = routed.cursor.expectedOffset
+    navigation = routed.cursor.navigation
 
-    if (navigation.kind === 'fastForwardJump') {
-      if (start > navigation.end || end <= navigation.end) return
-      navigation.text += dropLeadingBytes(content, navigation.end - start)
-      navigation.end = end
+    if (routed.effect.kind === 'finishRewind') {
+      finishRewind()
       return
     }
+    if (routed.effect.kind !== 'append') return
 
-    if (end <= expectedOffset) return
-    if (start > expectedOffset) {
-      // Lacuna só é legítima no Fast Forward: o servidor pulou para a cauda do arquivo.
-      if (navigation.kind === 'fastForward') {
-        navigation = { kind: 'fastForwardJump', start, end, text: content }
-      }
-      return
-    }
-
-    const text = dropLeadingBytes(content, expectedOffset - start)
-    expectedOffset = end
-
-    if (navigation.kind === 'rewind') {
-      navigation.text += text
-      if (end >= navigation.end) {
-        finishRewind()
-      }
-      return
-    }
-
-    // Continuação do offset atual: o Fast Forward sem salto vira um Play comum.
-    navigation = { kind: 'live' }
+    const { text } = routed.effect
     // Stick to bottom: só segue o fim se a visão já estava nele antes do chunk; quem rolou para cima fica onde está (#25).
     const follow = isAtBottom()
     const parsed = splitLines(pendingLine + text, end - byteLength(pendingLine + text))
@@ -398,7 +296,7 @@ export function useLogStream() {
     // A retomada parte do fim da última linha completa: o fragmento pendente é relido do servidor.
     currentWsOffset.value = end - byteLength(pendingLine)
     // O scroll-smooth foi removido de propósito: cada LOG_CHUNK reiniciava a animação suave.
-    // Esperamos o nextTick porque o #log-container só recebe o novo conteúdo depois do patch do DOM do Vue.
+    // Esperamos o nextTick porque o LogViewer só recebe o novo conteúdo depois do patch do DOM do Vue.
     if (!follow) return
     await nextTick()
     scrollToBottom()
@@ -412,7 +310,7 @@ export function useLogStream() {
     stopStream()
 
     // Só o trecho [start, end): o que passou do início do buffer já está na tela.
-    const page = utf8Decoder.decode(utf8.encode(text).slice(0, end - start))
+    const page = takeLeadingBytes(text, end - start)
     const lines = splitLines(page, start, start > 0).lines.slice(-pageLines.value)
     let merged = [...toEntries(lines), ...logs.value]
     if (merged.length > MAX_LOG_ENTRIES) {
@@ -445,17 +343,15 @@ export function useLogStream() {
   }
 
   function sendStart(extra: Record<string, number> = {}) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false
-    if (!selectedTarget.value) return false
+    if (!isOpen() || !selectedTarget.value) return false
 
-    ws.send(JSON.stringify({
+    return send({
       type: 'START_STREAM',
       targetId: selectedTarget.value.id,
       offset: currentWsOffset.value,
       streamId: ++streamId,
       ...extra,
-    }))
-    return true
+    })
   }
 
   function startStream() {
@@ -468,11 +364,7 @@ export function useLogStream() {
 
   function stopStream() {
     expectedOffset = null
-    if (!ws || ws.readyState !== WebSocket.OPEN) return
-
-    ws.send(JSON.stringify({
-      type: 'PAUSE_STREAM',
-    }))
+    send({ type: 'PAUSE_STREAM' })
   }
 
   // Bytes estimados para N linhas, pela média do buffer, com folga para o corte exato em linhas.
@@ -486,19 +378,19 @@ export function useLogStream() {
 
   // Rewind: carrega a página anterior ao início do buffer e pausa.
   function rewind() {
-    if (!canRewind.value || !ws || ws.readyState !== WebSocket.OPEN) return
+    if (!canRewind.value || !isOpen()) return
     const end = bufferStart.value
     const start = Math.max(0, end - pageBytes())
 
     setPlaying(false)
     navigation = { kind: 'rewind', start, end, text: '' }
     expectedOffset = start
-    ws.send(JSON.stringify({
+    send({
       type: 'START_STREAM',
       targetId: selectedTarget.value!.id,
       offset: start,
       streamId: ++streamId,
-    }))
+    })
   }
 
   // Fast Forward: vai para a cauda do arquivo (nunca recua) e segue tocando ao vivo.
@@ -532,23 +424,15 @@ export function useLogStream() {
   }
 
   function isAtBottom(): boolean {
-    const container = document.getElementById('log-container')
-    if (!container) return true
-    return container.scrollHeight - container.clientHeight - container.scrollTop <= STICK_TO_BOTTOM_THRESHOLD
+    return viewport.value?.isAtBottom() ?? true
   }
 
   function scrollToBottom() {
-    const container = document.getElementById('log-container')
-    if (container) {
-      container.scrollTop = container.scrollHeight
-    }
+    viewport.value?.scrollToBottom()
   }
 
   function scrollToTop() {
-    const container = document.getElementById('log-container')
-    if (container) {
-      container.scrollTop = 0
-    }
+    viewport.value?.scrollToTop()
   }
 
   // Um callback por chunk com todas as suas linhas: a gravação no Quadro faz uma escrita por lote (#37).
@@ -556,22 +440,13 @@ export function useLogStream() {
     onLogEntries = callback
   }
 
-  function getWsState(): number | undefined {
-    return wsState.value
-  }
-
   onMounted(() => {
-    shouldReconnect = true
     fetchConfig()
     fetchTargets()
-    connectWebSocket()
+    connect()
   })
 
-  onUnmounted(() => {
-    shouldReconnect = false
-    clearReconnectTimer()
-    if (ws) ws.close()
-  })
+  onUnmounted(disconnect)
 
   return {
     tree,
@@ -598,7 +473,6 @@ export function useLogStream() {
     pageLines,
     downloadLog,
     setOnLogEntries,
-    getWsState,
     fetchRotationsFor,
     addRotation,
   }

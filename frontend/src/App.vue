@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
-import type { LogRotation, LogTreeTarget } from '@/types'
+import type { LogTreeTarget, LogViewport } from '@/types'
 import { findTargetById } from '@/lib/logTree'
 import {
   ShellTitleBar,
@@ -22,6 +22,8 @@ import {
 import { commands } from '@/commands.config'
 import { views } from '@/views.config'
 import LogViewer from '@/components/LogViewer.vue'
+
+const logViewer = ref<LogViewport | null>(null)
 
 const {
   tree,
@@ -44,10 +46,10 @@ const {
   canRewind,
   downloadLog,
   setOnLogEntries,
-  getWsState,
+  wsState,
   fetchRotationsFor,
   addRotation,
-} = useLogStream()
+} = useLogStream(logViewer)
 
 const {
   isRecording,
@@ -63,8 +65,6 @@ const {
 setOnLogEntries((lines) => {
   void recordLines(lines, lineMatcher.value.matches)
 })
-
-const wsState = computed(() => getWsState())
 
 const activeSection = ref<string | null>(views[0]?.id ?? null)
 const lastActiveViewId = ref<string | null>(activeSection.value)
@@ -112,14 +112,6 @@ const { isNarrow } = useShellViewport()
 function selectTargetFromSidebar(target: LogTreeTarget) {
   selectTarget(target)
   if (isNarrow.value) toggleSidebar()
-}
-
-function requestRotations(target: LogTreeTarget) {
-  void fetchRotationsFor(target)
-}
-
-function addTargetRotation(target: LogTreeTarget, rotation: LogRotation) {
-  addRotation(target, rotation)
 }
 
 function closeTab(id: string) {
@@ -181,8 +173,8 @@ useShellKeybindings({
 const statusBarLeftItems = computed<ShellStatusBarItem[]>(() => [
   {
     id: 'ws-state',
-    icon: wsState.value === 1 ? 'circle-filled' : 'circle-outline',
-    label: wsState.value === 1 ? 'Conectado' : 'Desconectado',
+    icon: wsState.value === WebSocket.OPEN ? 'circle-filled' : 'circle-outline',
+    label: wsState.value === WebSocket.OPEN ? 'Conectado' : 'Desconectado',
   },
 ])
 
@@ -275,8 +267,8 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
         :is="activeView.component"
         v-bind="activeViewProps"
         @select-target="selectTargetFromSidebar"
-        @request-rotations="requestRotations"
-        @add-rotation="addTargetRotation"
+        @request-rotations="fetchRotationsFor"
+        @add-rotation="addRotation"
         @export-record="exportRecord"
         @clear-record="clearRecord"
       />
@@ -292,6 +284,7 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
 
       <div class="editor-area lz-editor-area">
         <LogViewer
+          ref="logViewer"
           :filtered-logs="filteredLogs"
           :is-playing="isPlaying"
           :has-target="!!selectedTarget"

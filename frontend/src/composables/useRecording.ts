@@ -1,7 +1,7 @@
 import { ref, computed, onMounted, onUnmounted, type Ref } from 'vue'
 import Dexie, { liveQuery } from 'dexie'
 import { gzipBlob } from '@/lib/gzip'
-import type { ParsedLine } from '@/composables/useLogStream'
+import type { ParsedLine } from '@/lib/logChunks'
 
 // CA5: exports acima de 5MB saem em .gz.
 export const COMPRESSION_THRESHOLD_BYTES = 5 * 1024 * 1024

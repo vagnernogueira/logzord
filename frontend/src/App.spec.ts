@@ -280,7 +280,7 @@ function createLogStreamState() {
       isPlaying.value = !isPlaying.value
     }),
     setOnLogEntries: vi.fn(),
-    getWsState: () => 1,
+    wsState: ref<number>(WebSocket.OPEN),
     fetchRotationsFor: vi.fn(),
     addRotation: vi.fn(),
   }

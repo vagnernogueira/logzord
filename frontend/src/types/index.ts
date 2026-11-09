@@ -31,3 +31,10 @@ export interface LogEntry {
   // Conteúdo escapado e realçado, pronto para v-html.
   html: string
 }
+
+// Área de scroll do log, exposta pelo LogViewer: o stream decide quando rolar sem tocar no DOM.
+export interface LogViewport {
+  isAtBottom: () => boolean
+  scrollToBottom: () => void
+  scrollToTop: () => void
+}

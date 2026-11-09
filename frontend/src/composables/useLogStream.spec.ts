@@ -1,8 +1,10 @@
-import { defineComponent, h, nextTick } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLogStream } from './useLogStream'
 import { syntaxHighlight } from '@/lib/syntaxHighlight'
+import LogViewer from '@/components/LogViewer.vue'
+import type { LogViewport } from '@/types'
 
 vi.mock('@/lib/syntaxHighlight', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/syntaxHighlight')>()
@@ -46,8 +48,9 @@ function logChunk(ws: FakeWebSocket, content: string, offset: number) {
 const TestHarness = defineComponent({
   name: 'TestHarness',
   setup() {
-    stream = useLogStream()
-    return () => h('div', [h('div', { id: 'log-container' })])
+    const viewer = ref<LogViewport | null>(null)
+    stream = useLogStream(viewer)
+    return () => h('div', [h(LogViewer, { ref: viewer, filteredLogs: [], isPlaying: false, hasTarget: false })])
   },
 })
 
@@ -65,7 +68,7 @@ describe('useLogStream', () => {
   })
 
   afterEach(() => {
-    // Harnesses montados com attachTo: sem limpar, o #log-container de um teste vaza para o getElementById do seguinte.
+    // Harnesses montados com attachTo: sem limpar, o DOM de um teste vaza para o seguinte.
     document.body.innerHTML = ''
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
