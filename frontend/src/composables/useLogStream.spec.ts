@@ -58,6 +58,7 @@ describe('useLogStream', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
+        ok: true,
         json: async () => [],
       }),
     )
@@ -137,6 +138,7 @@ describe('useLogStream', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
+        ok: true,
         json: async () => [{ type: 'target', id: 'app', label: 'App', path: '/var/log/app.log' }],
       }),
     )
@@ -452,6 +454,66 @@ describe('useLogStream', () => {
 
     expect(hrefs).toEqual(['http://localhost:3001/api/targets/app%3A%3A2026-08-21/download'])
   })
+
+  it('GET /targets com 500 mantém a árvore vazia e loga o erro (#38)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => (url.endsWith('/targets')
+        ? { ok: false, status: 500, json: async () => ({ error: 'boom' }) }
+        : { ok: true, json: async () => ({}) })),
+    )
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+
+    expect(stream!.tree.value).toEqual([])
+    expect(consoleError).toHaveBeenCalledWith('Failed to fetch targets:', expect.any(Error))
+  })
+
+  it('GET de rotações com erro deixa a lista vazia sem lançar (#38)', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: 'not found' }) }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await stream!.fetchRotationsFor({ type: 'target', id: 'app', label: 'App' })
+
+    expect(stream!.availableRotations.value).toEqual([])
+    expect(stream!.rotationsLoading.value).toBe(false)
+  })
+
+  it('id com / gera URL codificada em rotações e download (#38)', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [] })
+    vi.stubGlobal('fetch', fetchMock)
+    const hrefs: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      hrefs.push(this.href)
+    })
+    const target = { type: 'target' as const, id: 'svc/app?x#1', label: 'App' }
+
+    await stream!.fetchRotationsFor(target)
+    stream!.selectTarget(target)
+    stream!.downloadLog()
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3001/api/targets/svc%2Fapp%3Fx%231/rotations')
+    expect(hrefs).toEqual(['http://localhost:3001/api/targets/svc%2Fapp%3Fx%231/download'])
+  })
+
+  it('mensagem WS com JSON inválido é logada e ignorada (#38)', async () => {
+    mount(TestHarness, { attachTo: document.body })
+    await flushPromises()
+    const ws = wsInstances[0]!
+    stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await ws.onmessage?.(new MessageEvent('message', { data: 'not json' }))
+    await logChunk(ws, 'linha 1\n', 8)
+
+    expect(consoleError).toHaveBeenCalledWith('Invalid WS message:', expect.any(SyntaxError))
+    expect(stream!.logs.value.map((entry) => entry.content)).toEqual(['linha 1'])
+  })
   describe('Rewind e Fast Forward', () => {
     // Arquivo a partir do byte 82: '9\n' 82-84 · 'l0\n' -87 · 'l1\n' -90 · 'l2a\n' -94 · 'l3\n' -97 · 'l4\n' -100
     const app = { type: 'target' as const, id: 'app', label: 'App' }
@@ -462,6 +524,7 @@ describe('useLogStream', () => {
 
     async function mountWithPageLines(pageLines: number) {
       vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+        ok: true,
         json: async () => (url.endsWith('/config') ? { pageLines } : []),
       })))
       mount(TestHarness, { attachTo: document.body })
