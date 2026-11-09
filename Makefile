@@ -8,7 +8,7 @@ LOG_GENERATOR_PIDFILE ?= ./wkr/generate-logs.pid
 LOG_GENERATOR_OUT ?= ./wkr/generate-logs.out
 
 run:
-	@echo "Subindo as imagens publicadas no GHCR (ghcr.io/vagnernogueira/logzord-*:latest), nao um build local. Para usar imagem local, veja os comentarios em compose.yaml."
+	@echo "Subindo a imagem publicada no GHCR (ghcr.io/vagnernogueira/logzord:latest), nao um build local. Para usar imagem local, veja os comentarios em compose.yaml."
 	$(COMPOSE) pull
 	$(COMPOSE) up -d
 
