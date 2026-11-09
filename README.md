@@ -83,11 +83,11 @@ npm --workspace=frontend run test
 
 ## CI/CD
 
-O workflow de PR executa lint, typecheck (frontend) e testes de frontend e backend. O workflow de publicação é executado em tags `v*` ou manualmente e publica a imagem única (`ghcr.io/vagnernogueira/logzord`) no GHCR somente após o gate de testes.
+Os workflows de PR e de publicação chamam o mesmo workflow reutilizável (`validate.yml`): lint de frontend e backend, typecheck, testes de frontend e backend e build do frontend. O workflow de publicação é executado em tags `v*` ou manualmente e publica a imagem única (`ghcr.io/vagnernogueira/logzord`) no GHCR somente após esse gate.
 
 Em push de tag `vX.Y.Z`, o workflow também recusa publicar se a versão da tag não bater com a versão do `package.json` raiz do monorepo — falha antes do build/push, com mensagem de erro indicando as duas versões divergentes. Disparo manual via `workflow_dispatch` (sem tag associada) pula essa checagem de propósito.
 
-Configure `GH_PACKAGES_TOKEN`, `FRONTEND_HTTP_URL` e `FRONTEND_WS_URL` em **Settings > Secrets and variables > Actions**. `GITHUB_TOKEN` é fornecido automaticamente pelo GitHub Actions e não pode ser criado como secret do repositório:
+Configure `GH_PACKAGES_TOKEN`, `FRONTEND_HTTP_URL` e `FRONTEND_WS_URL` em **Settings > Secrets and variables > Actions**. O Dependabot não lê secrets de Actions: cadastre também `GH_PACKAGES_TOKEN` em **Settings > Secrets and variables > Dependabot**, senão os PRs dele falham no `npm ci`. `GITHUB_TOKEN` é fornecido automaticamente pelo GitHub Actions e não pode ser criado como secret do repositório:
 
 | Secret | Valor |
 | :--- | :--- |

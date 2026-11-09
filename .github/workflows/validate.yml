@@ -1,0 +1,48 @@
+name: Validate
+
+# Workflow reutilizável: gate único de validação chamado por pr-checks.yml e docker-publish.yml.
+on:
+  workflow_call:
+    secrets:
+      GH_PACKAGES_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+      - name: Lint frontend
+        run: npm run --workspace=frontend lint
+
+      - name: Lint backend
+        run: npm run --workspace=backend lint
+
+      - name: Typecheck frontend
+        run: npm run --workspace=frontend typecheck
+
+      - name: Test frontend
+        run: npm run --workspace=frontend test
+
+      - name: Test backend
+        run: npm run --workspace=backend test
+
+      - name: Build frontend
+        run: npm run --workspace=frontend build
