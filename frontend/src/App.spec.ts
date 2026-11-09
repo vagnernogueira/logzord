@@ -1,4 +1,4 @@
-import { ref, type PropType, type VNode } from 'vue'
+import { nextTick, ref, type PropType, type VNode } from 'vue'
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LogEntry, LogTreeNode, LogTreeTarget } from '@/types'
@@ -508,5 +508,20 @@ describe('App', () => {
     onLogEntries(lines)
 
     expect(recording.recordLines).toHaveBeenCalledWith(lines, matches)
+  })
+
+  it('o botão da title bar e o comando toggle-theme alternam data-theme no <html>', async () => {
+    const wrapper = mountApp()
+    const root = document.documentElement
+    const initial = root.getAttribute('data-theme')
+    const other = initial === 'dark' ? 'light' : 'dark'
+
+    await wrapper.find('[aria-label="Alternar tema"]').trigger('click')
+    await nextTick()
+    expect(root.getAttribute('data-theme')).toBe(other)
+
+    wrapper.findComponent({ name: 'ShellCommandPalette' }).vm.$emit('execute', 'toggle-theme')
+    await nextTick()
+    expect(root.getAttribute('data-theme')).toBe(initial)
   })
 })
