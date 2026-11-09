@@ -1,22 +1,29 @@
 import { ref, computed, onMounted, onUnmounted, type Ref } from 'vue'
 import Dexie, { liveQuery } from 'dexie'
 import { gzipBlob } from '@/lib/gzip'
+import type { ParsedLine } from '@/composables/useLogStream'
 
 // CA5: exports acima de 5MB saem em .gz.
 export const COMPRESSION_THRESHOLD_BYTES = 5 * 1024 * 1024
 
 export const EXPORT_PAGE_SIZE = 10_000
 
+export const ANALYSIS_DB_NAME = 'LogzordAnalysisDB'
+
 export function useRecording(activeTargetId: Ref<string | null>) {
-  const db = new Dexie('LogzordAnalysisDB')
-  db.version(1).stores({
-    recordedLogs: '++id, content, offset',
+  const db = new Dexie(ANALYSIS_DB_NAME)
+  // v2 (#37): só a chave primária. A v1 indexava content e offset sem nenhuma consulta usá-los;
+  // a migração apenas remove os índices e preserva as linhas.
+  db.version(2).stores({
+    recordedLogs: '++id',
   })
 
   // Gravação por aba: o botão comanda só a aba em foco; o Quadro de Análise (IndexedDB) é único.
   const recordingTargetIds = ref(new Set<string>())
   const isRecording = computed(() => !!activeTargetId.value && recordingTargetIds.value.has(activeTargetId.value))
   const recordedCount = ref(0)
+  // Última falha de escrita no Quadro (quota, modo privado...); some na próxima escrita bem-sucedida.
+  const recordError = ref<string | null>(null)
 
   function toggleRecord() {
     const id = activeTargetId.value
@@ -33,18 +40,26 @@ export function useRecording(activeTargetId: Ref<string | null>) {
   }
 
   // `matches` é o mesmo critério do filtro da tela (lib/lineMatcher): o Quadro guarda só o que está visível.
-  async function recordLine(line: string, offset: number, matches: (line: string) => boolean) {
+  // Uma escrita (bulkAdd) por chunk. Nunca rejeita: a falha vira log + recordError.
+  async function recordLines(lines: ParsedLine[], matches: (line: string) => boolean) {
     if (!isRecording.value) return
-    if (!matches(line)) return
+    const rows = lines
+      .filter((line) => matches(line.content))
+      .map(({ content, offset }) => ({ content, offset }))
+    if (rows.length === 0) return
 
-    await db.table('recordedLogs').add({
-      content: line,
-      offset,
-    })
+    try {
+      await db.table('recordedLogs').bulkAdd(rows)
+      recordError.value = null
+    } catch (err) {
+      console.error('Falha ao gravar no Quadro de Análise:', err)
+      recordError.value = err instanceof Error && err.message ? err.message : String(err)
+    }
   }
 
   async function clearRecord() {
     await db.table('recordedLogs').clear()
+    recordError.value = null
   }
 
   // Leitura paginada pela chave primária, uma parte de Blob por página: o export nunca monta uma string
@@ -107,9 +122,10 @@ export function useRecording(activeTargetId: Ref<string | null>) {
   return {
     isRecording,
     recordedCount,
+    recordError,
     toggleRecord,
     forgetTarget,
-    recordLine,
+    recordLines,
     clearRecord,
     exportRecord,
   }

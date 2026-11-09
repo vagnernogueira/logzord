@@ -2,6 +2,7 @@
 defineProps<{
   recordedCount: number
   isRecording: boolean
+  recordError?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -29,6 +30,14 @@ const emit = defineEmits<{
           <span class="codicon codicon-record" />
           Gravando...
         </span>
+      </div>
+      <div
+        v-if="recordError"
+        class="lz-analysis__error"
+        role="alert"
+      >
+        <span class="codicon codicon-error" />
+        Falha ao gravar: {{ recordError }}
       </div>
       <div class="lz-analysis__actions">
         <vscode-button @click="emit('export-record')">

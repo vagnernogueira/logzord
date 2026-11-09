@@ -311,7 +311,7 @@ describe('useLogStream', () => {
     await flushPromises()
     const ws = wsInstances[0]!
     const lines: Array<[string, number]> = []
-    stream!.setOnLogEntry((line, offset) => lines.push([line, offset]))
+    stream!.setOnLogEntries((batch) => batch.forEach(({ content, offset }) => lines.push([content, offset])))
     stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
 
     await logChunk(ws, 'linha 1\nlin', 11)
@@ -327,12 +327,13 @@ describe('useLogStream', () => {
     expect(stream!.currentWsOffset.value).toBe(16)
   })
 
-  it('com o buffer cheio mantém só as 2000 linhas mais novas e emite todas no onLogEntry', async () => {
+  it('com o buffer cheio mantém só as 2000 linhas mais novas e emite todas no onLogEntries', async () => {
     mount(TestHarness, { attachTo: document.body })
     await flushPromises()
     const ws = wsInstances[0]!
     let emitted = 0
-    stream!.setOnLogEntry(() => { emitted++ })
+    let batches = 0
+    stream!.setOnLogEntries((batch) => { emitted += batch.length; batches++ })
     stream!.selectTarget({ type: 'target', id: 'app', label: 'App' })
 
     const first = Array.from({ length: 1500 }, (_, i) => `a${i}\n`).join('')
@@ -345,6 +346,7 @@ describe('useLogStream', () => {
     expect(contents[0]).toBe('a500')
     expect(contents[1999]).toBe('b999')
     expect(emitted).toBe(2500)
+    expect(batches).toBe(2)
   })
 
   it('mantém ids únicos com mais de 2000 linhas e realça só as linhas novas de cada chunk (#36)', async () => {
@@ -394,7 +396,7 @@ describe('useLogStream', () => {
     await flushPromises()
     const ws = wsInstances[0]!
     const lines: string[] = []
-    stream!.setOnLogEntry((line) => lines.push(line))
+    stream!.setOnLogEntries((batch) => batch.forEach(({ content }) => lines.push(content)))
     const app = { type: 'target' as const, id: 'app', label: 'App' }
     const worker = { type: 'target' as const, id: 'worker', label: 'Worker' }
 
@@ -483,7 +485,7 @@ describe('useLogStream', () => {
     it('Fast Forward com salto substitui o buffer pelas N últimas linhas e segue tocando', async () => {
       const ws = await mountWithPageLines(2)
       const lines: string[] = []
-      stream!.setOnLogEntry((line) => lines.push(line))
+      stream!.setOnLogEntries((batch) => batch.forEach(({ content }) => lines.push(content)))
       stream!.selectTarget(app)
       await logChunk(ws, 'a\n', 2)
 
@@ -519,7 +521,7 @@ describe('useLogStream', () => {
       const ws = await mountWithPageLines(2)
       await fastForwardToTail(ws)
       const lines: string[] = []
-      stream!.setOnLogEntry((line) => lines.push(line))
+      stream!.setOnLogEntries((batch) => batch.forEach(({ content }) => lines.push(content)))
       expect(stream!.canRewind.value).toBe(true)
 
       stream!.rewind()
