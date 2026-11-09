@@ -22,8 +22,23 @@ export const COMPRESSION_THRESHOLD_BYTES = 5 * 1024 * 1024;
 export const DEFAULT_CONFIG = { pageLines: 50 };
 const MAX_PAGE_LINES = 2000;
 
-function byteLengthOf(chunk) {
-  return Buffer.byteLength(chunk, 'utf8');
+// Bytes finais que iniciam um caractere UTF-8 ainda incompleto (0 se o buffer termina num caractere
+// inteiro ou em bytes inválidos). Retidos entre leituras em vez de virarem U+FFFD (#31).
+export function incompleteUtf8TailLength(buffer) {
+  const stop = Math.max(0, buffer.length - 3);
+  for (let i = buffer.length - 1; i >= stop; i -= 1) {
+    const byte = buffer[i];
+    if ((byte & 0xc0) === 0x80) {
+      continue;
+    }
+    let needed = 1;
+    if (byte >= 0xc2 && byte <= 0xdf) needed = 2;
+    else if (byte >= 0xe0 && byte <= 0xef) needed = 3;
+    else if (byte >= 0xf0 && byte <= 0xf4) needed = 4;
+    const available = buffer.length - i;
+    return available < needed ? available : 0;
+  }
+  return 0;
 }
 
 function sendMessage(ws, message) {
@@ -236,7 +251,9 @@ function attachWebSocketServer(server, targetsPath, logRoot, heartbeatIntervalMs
     });
     let currentStream = null;
     let currentTargetPath = null;
+    // Byte do arquivo até onde já foi lido; o offset enviado desconta os bytes retidos em pendingBytes.
     let currentOffset = 0;
+    let pendingBytes = Buffer.alloc(0);
     let isStreaming = false;
     let watchTimer = null;
     // streamId opcional do START_STREAM, devolvido em LOG_CHUNK/STREAM_END/ERROR para o cliente descartar
@@ -278,6 +295,7 @@ function attachWebSocketServer(server, targetsPath, logRoot, heartbeatIntervalMs
 
         if (stats.size < currentOffset) {
           currentOffset = stats.size;
+          pendingBytes = Buffer.alloc(0);
         }
 
         if (stats.size === currentOffset) {
@@ -290,7 +308,6 @@ function attachWebSocketServer(server, targetsPath, logRoot, heartbeatIntervalMs
           stream = fs.createReadStream(currentTargetPath, {
             start: currentOffset,
             end: stats.size - 1,
-            encoding: 'utf8',
           });
         } catch (readError) {
           // Fora do try/catch do handler de mensagem: sem isso a exceção derruba o processo (#30).
@@ -303,11 +320,17 @@ function attachWebSocketServer(server, targetsPath, logRoot, heartbeatIntervalMs
         const streamId = currentStreamId;
 
         stream.on('data', (chunk) => {
-          currentOffset += byteLengthOf(chunk);
+          currentOffset += chunk.length;
+          const bytes = pendingBytes.length > 0 ? Buffer.concat([pendingBytes, chunk]) : chunk;
+          const completeLength = bytes.length - incompleteUtf8TailLength(bytes);
+          pendingBytes = bytes.subarray(completeLength);
+          if (completeLength === 0) {
+            return;
+          }
           sendMessage(ws, tagged({
             type: 'LOG_CHUNK',
-            content: chunk,
-            offset: currentOffset,
+            content: bytes.toString('utf8', 0, completeLength),
+            offset: currentOffset - pendingBytes.length,
           }, streamId));
         });
 
@@ -340,6 +363,7 @@ function attachWebSocketServer(server, targetsPath, logRoot, heartbeatIntervalMs
       cleanupCurrentStream();
       currentTargetPath = null;
       currentOffset = 0;
+      pendingBytes = Buffer.alloc(0);
     }
 
     ws.on('message', (message) => {
@@ -378,6 +402,7 @@ function attachWebSocketServer(server, targetsPath, logRoot, heartbeatIntervalMs
           currentStreamId = requestedStreamId;
           currentTargetPath = logPath;
           currentOffset = startOffset;
+          pendingBytes = Buffer.alloc(0);
           // Fast Forward: pula para a cauda do arquivo, mas nunca recua antes do offset do cliente.
           if (Number.isInteger(data.fromEnd) && data.fromEnd > 0) {
             const { size } = fs.statSync(logPath);
