@@ -12,5 +12,8 @@
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev": "npm run dev:backend & npm run dev:frontend"
+  },
+  "overrides": {
+    "minimatch": "^11.0.5"
   }
 }
