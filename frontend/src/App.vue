@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
+import { useTheme } from '@/composables/useTheme'
 import type { LogTreeTarget, LogViewport } from '@/types'
 import { findTargetById } from '@/lib/logTree'
 import {
@@ -61,6 +62,8 @@ const {
   clearRecord,
   exportRecord,
 } = useRecording(computed(() => selectedTarget.value?.id ?? null))
+
+const { toggleTheme } = useTheme()
 
 setOnLogEntries((lines) => {
   void recordLines(lines, lineMatcher.value.matches)
@@ -157,6 +160,7 @@ const commandHandlers: Record<string, () => void> = {
   'toggle-record': toggleRecord,
   'export-record': () => void exportRecord(),
   'clear-record': () => void clearRecord(),
+  'toggle-theme': toggleTheme,
 }
 
 function executeCommand(id: string) {
@@ -250,6 +254,12 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
           :title="isRecording ? 'Parar gravação no Quadro de Análise' : 'Iniciar gravação no Quadro de Análise'"
           :aria-label="isRecording ? 'Parar gravação' : 'Iniciar gravação'"
           @click="toggleRecord"
+        />
+        <ShellTitleBarAction
+          icon="color-mode"
+          title="Alternar tema claro/escuro"
+          aria-label="Alternar tema"
+          @click="toggleTheme"
         />
       </template>
     </ShellTitleBar>
