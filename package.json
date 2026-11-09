@@ -14,6 +14,7 @@
     "dev": "npm run dev:backend & npm run dev:frontend"
   },
   "overrides": {
-    "minimatch": "^11.0.5"
+    "minimatch": "^11.0.5",
+    "glob": "^14.0.4"
   }
 }
