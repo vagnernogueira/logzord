@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
-import { afterAll, afterEach, describe, expect, it } from 'vitest';
-import { createServer } from '../../app.js';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { createServer, WS_MAX_PAYLOAD_BYTES } from '../../app.js';
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logzord-ws-test-'));
 
@@ -130,7 +130,7 @@ async function closeServer({ server, wss }) {
   });
 }
 
-async function createTestServer(logContent = 'first line\nsecond line\n') {
+async function createTestServer(logContent = 'first line\nsecond line\n', serverOptions = {}) {
   const testDir = fs.mkdtempSync(path.join(tempDir, 'case-'));
   const targetsPath = path.join(testDir, 'targets.json');
   const logPath = path.join(testDir, 'sample.log');
@@ -139,7 +139,7 @@ async function createTestServer(logContent = 'first line\nsecond line\n') {
     { type: 'target', id: 'sample', label: 'Sample', path: logPath },
   ]));
 
-  const testServer = createServer({ targetsPath });
+  const testServer = createServer({ targetsPath, ...serverOptions });
   await new Promise((resolve) => testServer.server.listen(0, resolve));
   const address = testServer.server.address();
   if (!address || typeof address === 'string') {
@@ -149,7 +149,8 @@ async function createTestServer(logContent = 'first line\nsecond line\n') {
   return {
     ...testServer,
     logPath,
-    url: `ws://127.0.0.1:${address.port}`,
+    origin: `ws://127.0.0.1:${address.port}`,
+    url: `ws://127.0.0.1:${address.port}/ws`,
   };
 }
 
@@ -320,5 +321,75 @@ describe('WebSocket log streaming', () => {
     const chunk = (await streamMessages).find((message) => message.type === 'LOG_CHUNK');
     expect(chunk.content).toBe('cccc\n');
     expect(chunk.offset).toBe(15);
+  });
+
+  it.each([
+    ['negative', -5],
+    ['non-integer', 1.5],
+    ['string', '10'],
+    ['null', null],
+  ])('rejects a %s offset with ERROR and keeps serving other connections', async (_label, offset) => {
+    testServer = await createTestServer();
+    ws = await openWebSocket(testServer.url);
+
+    const errorMessage = waitForMessage(ws, (message) => message.type === 'ERROR');
+    ws.send(JSON.stringify({ type: 'START_STREAM', targetId: 'sample', offset, streamId: 4 }));
+    expect(await errorMessage).toEqual({ type: 'ERROR', message: 'Invalid offset', streamId: 4 });
+
+    const other = await openWebSocket(testServer.url);
+    try {
+      const streamMessages = waitForStreamEnd(other);
+      other.send(JSON.stringify({ type: 'START_STREAM', targetId: 'sample', offset: 0 }));
+      const chunk = (await streamMessages).find((message) => message.type === 'LOG_CHUNK');
+      expect(chunk.content).toBe('first line\nsecond line\n');
+    } finally {
+      await closeWebSocket(other);
+    }
+  });
+
+  it('rejects a non-string targetId with ERROR', async () => {
+    testServer = await createTestServer();
+    ws = await openWebSocket(testServer.url);
+
+    const errorMessage = waitForMessage(ws, (message) => message.type === 'ERROR');
+    ws.send(JSON.stringify({ type: 'START_STREAM', targetId: { id: 'sample' }, offset: 0 }));
+    expect(await errorMessage).toEqual({ type: 'ERROR', message: 'Invalid targetId' });
+  });
+
+  it('rejects upgrades outside /ws', async () => {
+    testServer = await createTestServer();
+
+    await expect(openWebSocket(`${testServer.origin}/qualquer`)).rejects.toThrow();
+    await expect(openWebSocket(testServer.origin)).rejects.toThrow();
+  });
+
+  it('closes a connection whose message exceeds maxPayload', async () => {
+    testServer = await createTestServer();
+    ws = await openWebSocket(testServer.url);
+
+    const closed = new Promise((resolve) => ws.once('close', (code) => resolve(code)));
+    ws.send('x'.repeat(WS_MAX_PAYLOAD_BYTES + 1));
+    expect(await closed).toBe(1009);
+  });
+
+  it('terminates a client that stops answering pings', async () => {
+    testServer = await createTestServer('', { heartbeatIntervalMs: 50 });
+    ws = new WebSocket(testServer.url, { autoPong: false });
+    await new Promise((resolve, reject) => {
+      ws.once('open', resolve);
+      ws.once('error', reject);
+    });
+
+    const closed = new Promise((resolve) => ws.once('close', resolve));
+    await closed;
+    await vi.waitFor(() => expect(testServer.wss.clients.size).toBe(0));
+  });
+
+  it('keeps a client that answers pings', async () => {
+    testServer = await createTestServer('', { heartbeatIntervalMs: 50 });
+    ws = await openWebSocket(testServer.url);
+
+    await wait(300);
+    expect(ws.readyState).toBe(WebSocket.OPEN);
   });
 });
