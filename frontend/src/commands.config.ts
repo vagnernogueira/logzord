@@ -1,6 +1,7 @@
 import type { ShellCommand } from '@vagnernogueira/vsshellcode/vue'
 
 export const commands: ShellCommand[] = [
+  { id: 'quick-open', title: 'Ir para log… (Ctrl+P)', icon: 'go-to-file' },
   { id: 'toggle-sidebar', title: 'View: Toggle Sidebar', icon: 'layout-sidebar-left' },
   { id: 'toggle-theme', title: 'View: Toggle Theme', icon: 'color-mode' },
   { id: 'toggle-play', title: 'Stream: Play/Pause', icon: 'debug-start' },
