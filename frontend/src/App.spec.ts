@@ -72,12 +72,13 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async (importOriginal) => {
       activeId: { type: String as PropType<string | null>, default: null },
     },
     emits: ['update:activeId'],
-    setup(props, { emit }) {
+    setup(props, { emit, slots }) {
       return () =>
         h(
           'nav',
           { class: 'activity-bar' },
-          props.items.map((item) =>
+          [
+            ...props.items.map((item) =>
             h(
               'button',
               {
@@ -90,6 +91,8 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async (importOriginal) => {
               item.title,
             ),
           ),
+            slots.footer?.(),
+          ],
         )
     },
   })
@@ -523,5 +526,102 @@ describe('App', () => {
     wrapper.findComponent({ name: 'ShellCommandPalette' }).vm.$emit('execute', 'toggle-theme')
     await nextTick()
     expect(root.getAttribute('data-theme')).toBe(initial)
+  })
+
+  describe('command palette', () => {
+    type PaletteCommand = { id: string; title: string; icon?: string }
+    const groupedTree: LogTreeNode[] = [
+      { type: 'target', id: 'app', label: 'Application log' },
+      {
+        type: 'group',
+        id: 'infra',
+        label: 'Infra',
+        children: [
+          {
+            type: 'target',
+            id: 'caddy',
+            label: 'Caddy',
+            children: [{ type: 'target', id: 'caddy-1', label: 'Caddy.1', rotationOf: 'caddy' }],
+          },
+        ],
+      },
+    ]
+
+    function palette(wrapper: ReturnType<typeof mountApp>) {
+      return wrapper.findComponent({ name: 'ShellCommandPalette' })
+    }
+
+    function ctrlP() {
+      const options = useShellKeybindingsMock.mock.calls[0]![0] as { extra: Record<string, () => void> }
+      options.extra['ctrl+p']!()
+    }
+
+    it('o botão de raio abre a paleta no modo comandos', async () => {
+      const wrapper = mountApp()
+      expect(palette(wrapper).props('open')).toBe(false)
+
+      const button = wrapper.find('[aria-label="Abrir paleta de comandos"]')
+      expect(button.find('.codicon-symbol-event').exists()).toBe(true)
+      await button.trigger('click')
+
+      expect(palette(wrapper).props('open')).toBe(true)
+      expect((palette(wrapper).props('commands') as PaletteCommand[]).map(({ id }) => id)).toContain('quick-open')
+    })
+
+    it('Ctrl+P abre a paleta listando os logs com breadcrumb de grupos', async () => {
+      const state = createLogStreamState()
+      state.tree.value = groupedTree
+      useLogStreamMock.mockReturnValue(state)
+      const wrapper = mountApp()
+
+      ctrlP()
+      await nextTick()
+
+      expect(palette(wrapper).props('open')).toBe(true)
+      expect(palette(wrapper).props('commands')).toEqual([
+        { id: 'app', title: 'Application log', icon: 'file' },
+        { id: 'caddy', title: 'Infra › Caddy', icon: 'file' },
+        { id: 'caddy-1', title: 'Infra › Caddy.1', icon: 'history' },
+      ])
+    })
+
+    it('escolher um log no modo logs seleciona o target, fecha a paleta e não alterna a sidebar', async () => {
+      isNarrowMock.value = true
+      const state = createLogStreamState()
+      state.tree.value = groupedTree
+      useLogStreamMock.mockReturnValue(state)
+      const wrapper = mountApp()
+
+      ctrlP()
+      await nextTick()
+      palette(wrapper).vm.$emit('execute', 'caddy-1')
+      await nextTick()
+
+      expect(state.selectTarget).toHaveBeenCalledWith(expect.objectContaining({ id: 'caddy-1' }))
+      expect(palette(wrapper).props('open')).toBe(false)
+      expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeUndefined()
+    })
+
+    it('o comando quick-open reabre a paleta no modo logs', async () => {
+      const wrapper = mountApp()
+
+      await wrapper.find('[aria-label="Abrir paleta de comandos"]').trigger('click')
+      palette(wrapper).vm.$emit('execute', 'quick-open')
+      await nextTick()
+
+      expect(palette(wrapper).props('open')).toBe(true)
+      expect((palette(wrapper).props('commands') as PaletteCommand[]).map(({ id }) => id)).toEqual(['app', 'worker'])
+    })
+
+    it('fechar a paleta volta ao estado fechado', async () => {
+      const wrapper = mountApp()
+
+      ctrlP()
+      await nextTick()
+      palette(wrapper).vm.$emit('close')
+      await nextTick()
+
+      expect(palette(wrapper).props('open')).toBe(false)
+    })
   })
 })

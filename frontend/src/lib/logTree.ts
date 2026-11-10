@@ -44,3 +44,16 @@ export function toShellTreeNodes(nodes: LogTreeNode[]): ShellTreeNode[] {
     }
   })
 }
+
+export interface FlatTarget {
+  target: LogTreeTarget
+  path: string[]
+}
+
+// Lista plana para a paleta (Ctrl+P): `path` são os labels dos grupos ancestrais; rotações carregadas entram como filhas do target.
+export function flattenTargets(nodes: LogTreeNode[], path: string[] = []): FlatTarget[] {
+  return nodes.flatMap((node) => {
+    if (node.type === 'group') return flattenTargets(node.children, [...path, node.label])
+    return [{ target: node, path }, ...flattenTargets(node.children ?? [], path)]
+  })
+}

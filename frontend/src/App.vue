@@ -4,7 +4,7 @@ import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
 import { useTheme } from '@/composables/useTheme'
 import type { LogTreeTarget, LogViewport } from '@/types'
-import { findTargetById } from '@/lib/logTree'
+import { findTargetById, flattenTargets } from '@/lib/logTree'
 import {
   ShellTitleBar,
   ShellTitleBarAction,
@@ -17,6 +17,7 @@ import {
   ShellCommandPalette,
   useShellKeybindings,
   useShellViewport,
+  type ShellCommand,
   type ShellTitleBarMenuItem,
   type ShellStatusBarItem,
 } from '@vagnernogueira/vsshellcode/vue'
@@ -145,13 +146,28 @@ function toggleSidebar() {
 // Painel inferior removido da UI; stub mantido pois onTogglePanel é obrigatório em useShellKeybindings (vsshellcode).
 function togglePanel() {}
 
-const paletteOpen = ref(false)
+// Uma única paleta em dois modos, como no oka: comandos (Ctrl+Shift+P) e logs (Ctrl+P).
+const paletteMode = ref<'commands' | 'logs' | null>(null)
 
 function openCommandPalette() {
-  paletteOpen.value = true
+  paletteMode.value = 'commands'
 }
 
+function openLogPalette() {
+  paletteMode.value = 'logs'
+}
+
+const logCommands = computed<ShellCommand[]>(() =>
+  flattenTargets(tree.value).map(({ target, path }) => ({
+    id: target.id,
+    title: [...path, target.label].join(' › '),
+    icon: target.icon ?? (target.rotationOf ? 'history' : 'file'),
+  })),
+)
+const paletteCommands = computed(() => (paletteMode.value === 'logs' ? logCommands.value : commands))
+
 const commandHandlers: Record<string, () => void> = {
+  'quick-open': openLogPalette,
   'toggle-sidebar': toggleSidebar,
   'toggle-play': togglePlay,
   'stream-rewind': rewind,
@@ -163,15 +179,24 @@ const commandHandlers: Record<string, () => void> = {
   'toggle-theme': toggleTheme,
 }
 
+// Fecha antes de executar: o handler de 'quick-open' reabre a paleta no modo logs.
 function executeCommand(id: string) {
+  const mode = paletteMode.value
+  paletteMode.value = null
+  if (mode === 'logs') {
+    // selectTarget direto (não selectTargetFromSidebar): a paleta não deve alternar a sidebar em tela estreita.
+    const target = findTargetById(tree.value, id)
+    if (target) selectTarget(target)
+    return
+  }
   commandHandlers[id]?.()
-  paletteOpen.value = false
 }
 
 useShellKeybindings({
   onToggleSidebar: toggleSidebar,
   onTogglePanel: togglePanel,
   onOpenCommandPalette: openCommandPalette,
+  extra: { 'ctrl+p': openLogPalette },
 })
 
 const statusBarLeftItems = computed<ShellStatusBarItem[]>(() => [
@@ -267,7 +292,19 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
     <ShellActivityBar
       v-model:active-id="activeSection"
       :items="views"
-    />
+    >
+      <template #footer>
+        <button
+          class="activity-bar__item"
+          type="button"
+          title="Command Palette (Ctrl+Shift+P)"
+          aria-label="Abrir paleta de comandos"
+          @click="openCommandPalette"
+        >
+          <span class="codicon codicon-symbol-event" />
+        </button>
+      </template>
+    </ShellActivityBar>
 
     <ShellSidebar
       :open="activeSection !== null"
@@ -308,9 +345,9 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
     />
 
     <ShellCommandPalette
-      :open="paletteOpen"
-      :commands="commands"
-      @close="paletteOpen = false"
+      :open="paletteMode !== null"
+      :commands="paletteCommands"
+      @close="paletteMode = null"
       @execute="executeCommand"
     />
   </div>
