@@ -101,8 +101,9 @@ vi.mock('@vagnernogueira/vsshellcode/vue', async (importOriginal) => {
     name: 'ShellSidebar',
     props: {
       open: { type: Boolean, required: true },
+      width: { type: Number, default: undefined },
     },
-    emits: ['dismiss'],
+    emits: ['dismiss', 'update:width'],
     setup(props, { slots }) {
       return () =>
         h(
@@ -314,6 +315,7 @@ describe('App', () => {
     useRecordingMock.mockReturnValue(createRecordingState())
     useShellKeybindingsMock.mockReset()
     isNarrowMock.value = false
+    localStorage.removeItem('logzord-sidebar-width')
   })
 
   it('troca a view ao selecionar outra atividade', async () => {
@@ -361,6 +363,21 @@ describe('App', () => {
     await wrapper.findComponent({ name: 'ShellSidebar' }).vm.$emit('dismiss')
 
     expect(wrapper.find('aside.sidebar').attributes('hidden')).toBeDefined()
+  })
+
+  it('passa a largura salva à sidebar e persiste o arrasto do sash', async () => {
+    localStorage.setItem('logzord-sidebar-width', '320')
+    const wrapper = mountApp()
+    const sidebar = wrapper.findComponent({ name: 'ShellSidebar' })
+
+    expect(sidebar.props('width')).toBe(320)
+
+    await sidebar.vm.$emit('update:width', 400)
+    expect(sidebar.props('width')).toBe(400)
+    expect(localStorage.getItem('logzord-sidebar-width')).toBe('400')
+
+    await sidebar.vm.$emit('update:width', undefined)
+    expect(localStorage.getItem('logzord-sidebar-width')).toBeNull()
   })
 
   it('compõe tabs abertas, troca a tab ativa e fecha a tab ativa', async () => {

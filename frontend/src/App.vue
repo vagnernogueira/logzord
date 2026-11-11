@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useLogStream } from '@/composables/useLogStream'
 import { useRecording } from '@/composables/useRecording'
 import { useTheme } from '@/composables/useTheme'
+import { useSidebarWidth } from '@/composables/useSidebarWidth'
 import type { LogTreeTarget, LogViewport } from '@/types'
 import { findTargetById, flattenTargets } from '@/lib/logTree'
 import {
@@ -112,6 +113,9 @@ function activateTab(id: string) {
 
 // Em tela estreita a sidebar fica em overlay sobre o log (vsshellcode#18); ver issue #27.
 const { isNarrow } = useShellViewport()
+
+// Largura arrastada pelo sash da sidebar (vsshellcode#20), lembrada no navegador.
+const sidebarWidth = useSidebarWidth()
 
 function selectTargetFromSidebar(target: LogTreeTarget) {
   selectTarget(target)
@@ -307,6 +311,7 @@ const titleBarMenuItems: ShellTitleBarMenuItem[] = []
     </ShellActivityBar>
 
     <ShellSidebar
+      v-model:width="sidebarWidth"
       :open="activeSection !== null"
       @dismiss="toggleSidebar"
     >
